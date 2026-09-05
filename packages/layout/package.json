@@ -1,0 +1,15 @@
+{
+  "name": "@briday1/layout",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Source-agnostic editor, preview and inspector workbench.",
+  "files": ["dist"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./styles.css": "./dist/styles.css"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && cp src/styles.css dist/styles.css"
+  },
+  "license": "UNLICENSED"
+}

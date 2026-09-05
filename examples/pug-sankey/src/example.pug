@@ -1,0 +1,42 @@
+// Pug Sankey · powered by _layout
+// Click a ribbon or node to find its source and edit its properties.
+// Choose Diagram settings in Objects to explore all 12 flow shapes.
+.theme smooth
+.blend 60
+
+node
+  .id solar
+  .label Solar
+  .color #e9b779
+node
+  .id wind
+  .label Wind
+  .color #85b7e5
+node
+  .id grid
+  .label Power grid
+  .color #70c9b1
+node
+  .id homes
+  .label Homes
+  .color #c1aaed
+node
+  .id industry
+  .label Industry
+  .color #dc93ad
+flow
+  .from solar
+  .to grid
+  .value 40
+flow
+  .from wind
+  .to grid
+  .value 60
+flow
+  .from grid
+  .to homes
+  .value 45
+flow
+  .from grid
+  .to industry
+  .value 55
