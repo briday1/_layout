@@ -1,6 +1,7 @@
 import type {
   LayoutAdapter, SourceObject, InspectorField, TextEdit, Theme, DocumentContext,
 } from '@briday1/layout';
+import { svgToPng } from '@briday1/layout';
 import { parseDiagram } from './engine/parser.mjs';
 import { renderFlowField } from './engine/flowfield.mjs';
 import { DIAGRAM_THEMES } from './engine/diagram-themes.mjs';
@@ -50,10 +51,15 @@ function themedModel(model: SankeyModel, theme: Theme): SankeyModel {
   return { ...model, figure: {
     ...model.figure,
     background: model.figure.background || theme.tokens.preview,
-    text: theme.tokens.previewText,
-    labelColor: model.figure.labelColor || theme.tokens.previewText,
+    text: model.figure.background ? null : theme.tokens.previewText,
+    labelColor: model.figure.labelColor || (model.figure.background ? null : theme.tokens.previewText),
     font: model.figure.font || theme.tokens.font,
   } };
+}
+
+function exportSvg(model: SankeyModel, theme: Theme): string {
+  const svg = render(document.createElement('div'), themedModel(model, theme));
+  return `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(svg)}`;
 }
 
 function objects(source: string, model: SankeyModel): SourceObject[] {
@@ -140,6 +146,8 @@ export function createSankeyAdapter(initialSource = ''): LayoutAdapter<SankeyMod
         svg.querySelectorAll('[data-selection-key]').forEach(element => {
           element.classList.toggle('selected-element', element.getAttribute('data-selection-key') === key);
         });
+        svg.style.color = theme.tokens.accent;
+        svg.querySelector('style')!.textContent += '\n.selected-element .channel{filter:drop-shadow(0 0 3px currentColor)}';
       }
       container.replaceChildren(svg);
     },
@@ -184,10 +192,10 @@ export function createSankeyAdapter(initialSource = ''): LayoutAdapter<SankeyMod
     ],
     exports: [{
       id: 'svg', label: 'Export SVG', extension: 'svg', mimeType: 'image/svg+xml',
-      export({ model, theme }) {
-        const svg = render(document.createElement('div'), themedModel(model, theme));
-        return `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(svg)}`;
-      },
+      export: ({ model, theme }) => exportSvg(model, theme),
+    }, {
+      id: 'png', label: 'Export PNG', extension: 'png', mimeType: 'image/png',
+      export: ({ model, theme }) => svgToPng(exportSvg(model, theme)),
     }],
   };
 }

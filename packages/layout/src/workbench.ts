@@ -34,7 +34,10 @@ export function createWorkbench<Model>(
   const themeKey = storageKey ? `${storageKey}:theme` : null;
   const savedTheme = themeKey ? read(themeKey)?.theme : null;
   let source = options.source ?? (typeof saved?.source === 'string' ? saved.source : adapter.initialSource);
-  let theme: Theme = themes.find(item => item.id === (options.theme ?? savedTheme)) ?? themes[0];
+  const preferredScheme = win.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  let theme: Theme = themes.find(item => item.id === (options.theme ?? savedTheme)) ??
+    themes.find(item => item.id === preferredScheme) ??
+    themes.find(item => item.colorScheme === preferredScheme) ?? themes[0];
   let parsed: ParsedDocument<Model> | null = null;
   let selection: SourceObject | null = null;
   let destroyed = false;
@@ -102,6 +105,7 @@ export function createWorkbench<Model>(
   const editor = element('textarea', 'lw-editor');
   editor.setAttribute('aria-label', 'Source editor');
   editor.spellcheck = false;
+  editor.wrap = 'off';
   editor.value = source;
   sourcePanel.append(editor);
   const previewPanel = element('section', 'lw-preview-panel');
@@ -153,6 +157,24 @@ export function createWorkbench<Model>(
     if (sourcePanel.hidden) setMode('split');
     editor.focus({ preventScroll: true });
     editor.setSelectionRange(range.start, range.end);
+    const style = win.getComputedStyle(editor);
+    const fontSize = Number.parseFloat(style.fontSize) || 14;
+    const lineHeight = Number.parseFloat(style.lineHeight) || fontSize * 1.2;
+    const before = source.slice(0, range.start);
+    const line = before.split('\n').length - 1;
+    const columnText = before.slice(before.lastIndexOf('\n') + 1);
+    const measure = element('span', 'lw-source-measure', columnText);
+    Object.assign(measure.style, {
+      position: 'absolute', visibility: 'hidden', whiteSpace: 'pre',
+      font: style.font, letterSpacing: style.letterSpacing, tabSize: style.tabSize,
+    });
+    root.append(measure);
+    const columnWidth = measure.getBoundingClientRect().width;
+    measure.remove();
+    editor.scrollTop = Math.max(0, line * lineHeight + (Number.parseFloat(style.paddingTop) || 0) -
+      Math.max(0, (editor.clientHeight - lineHeight) / 2));
+    editor.scrollLeft = Math.max(0, columnWidth + (Number.parseFloat(style.paddingLeft) || 0) -
+      editor.clientWidth / 2);
   }
   function showDiagnostics(items: Diagnostic[]) {
     diagnostics.replaceChildren();
@@ -240,6 +262,22 @@ export function createWorkbench<Model>(
     if (next && focus) focusRange(next.range);
     if (changed) void render();
   }
+  function objectAt(range: SourceRange): SourceObject | null {
+    const objects = parsed?.objects.filter(item => validRange(item.range)) ?? [];
+    const containing = objects.filter(item => item.range.start <= range.start &&
+      (range.end > range.start ? item.range.end >= range.end :
+        range.start < item.range.end || (item.range.start === range.start && item.range.end === range.start)));
+    const size = (object: SourceObject) => object.range.end - object.range.start;
+    if (containing.length) return containing.sort((a, b) => size(a) - size(b))[0];
+    const distance = (object: SourceObject) =>
+      Math.max(object.range.start - range.start, range.start - object.range.end, 0);
+    return objects.sort((a, b) => distance(a) - distance(b) || size(a) - size(b))[0] ?? null;
+  }
+  function reveal(range: SourceRange) {
+    if (!validRange(range)) return;
+    select(objectAt(range)?.id ?? null, false);
+    focusRange(range);
+  }
   async function render() {
     clearRender();
     const current = context();
@@ -255,6 +293,11 @@ export function createWorkbench<Model>(
       const result = await adapter.render({
         ...current, container, theme, signal: controller.signal,
         select: id => { if (isCurrent()) select(id); },
+        reveal: range => { if (isCurrent()) reveal(range); },
+        edit: edits => {
+          if (!isCurrent()) return;
+          try { changeSource(applyEdits(source, edits)); } catch (error) { report(error); }
+        },
       });
       if (!isCurrent()) {
         cleanup(typeof result === 'function' ? result : undefined);
@@ -399,12 +442,7 @@ export function createWorkbench<Model>(
   listen(editor, 'input', () => changeSource(editor.value));
   const caretSelection = () => {
     if (!parsed || destroyed) return;
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    const object = parsed.objects.filter(item => validRange(item.range) &&
-      item.range.start <= start && (end > start ? item.range.end >= end :
-        start < item.range.end || (item.range.start === start && item.range.end === start)))
-      .sort((a, b) => (a.range.end - a.range.start) - (b.range.end - b.range.start))[0];
+    const object = objectAt({ start: editor.selectionStart, end: editor.selectionEnd });
     select(object?.id ?? null, false);
   };
   listen(editor, 'click', caretSelection);
@@ -428,7 +466,8 @@ export function createWorkbench<Model>(
     if (parsed) void render();
   }
   listen(themeSelect, 'change', () => setTheme(themeSelect.value));
-  setTheme(theme.id);
+  themeSelect.value = theme.id;
+  applyTheme(root, theme);
   void parse();
   return {
     getSource: () => source,

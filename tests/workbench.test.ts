@@ -157,6 +157,25 @@ describe('source-agnostic workbench', () => {
     expect(root.querySelector('.lw-inspector')?.textContent).toContain('Select an object');
   });
 
+  it('scrolls distant source ranges into view and reveals the editor from navigator selection', async () => {
+    const source = `${'line\n'.repeat(200)}target`;
+    const adapter = plainAdapter();
+    adapter.parse = () => ({
+      model: source,
+      objects: [{ id: 'target', label: 'Distant object', kind: 'text', range: { start: 1000, end: 1006 } }],
+    });
+    const { root, editor } = mount(adapter, { source });
+    editor.style.lineHeight = '20px';
+    Object.defineProperty(editor, 'clientHeight', { value: 200 });
+    await settle();
+    getButton(root, 'Preview').click();
+    getButton(root, 'Distant object').click();
+    expect(root.dataset.mode).toBe('split');
+    expect([editor.selectionStart, editor.selectionEnd]).toEqual([1000, 1006]);
+    expect(editor.scrollTop).toBeGreaterThan(3800);
+    expect(root.querySelector('.lw-source-measure')).toBeNull();
+  });
+
   it('treats multi-edit commands as one undo transaction, including textarea shortcuts', async () => {
     const adapter = plainAdapter();
     adapter.commands = [{
@@ -323,6 +342,18 @@ describe('source-agnostic workbench', () => {
 });
 
 describe('persistence', () => {
+  it('defaults to the system color scheme without persisting an unchosen preference', () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
+    const system = mount(plainAdapter());
+    expect(system.root.querySelector<HTMLSelectElement>('[aria-label="Theme"]')!.value).toBe('dark');
+    expect(localStorage.getItem('layout:plain:document:theme')).toBeNull();
+    const explicit = mount(plainAdapter(), { theme: 'light' });
+    expect(explicit.root.querySelector<HTMLSelectElement>('[aria-label="Theme"]')!.value).toBe('light');
+    system.workbench.setTheme('light');
+    const saved = mount(plainAdapter());
+    expect(saved.root.querySelector<HTMLSelectElement>('[aria-label="Theme"]')!.value).toBe('light');
+  });
+
   it('isolates adapters, restores versioned source, and persists theme separately', async () => {
     const first = mount(plainAdapter());
     first.workbench.setSource('persisted plain');
@@ -368,6 +399,73 @@ describe('persistence', () => {
 });
 
 describe('asynchronous lifecycle', () => {
+  it('reveals arbitrary UTF-16 preview ranges and selects the nearest inspector object', async () => {
+    const adapter = jsonAdapter();
+    const contexts: RenderContext<{ name: string }>[] = [];
+    adapter.render = context => { contexts.push(context); };
+    const { root, editor, workbench } = mount(adapter, { source: '{"name":"😀hello"}' });
+    await settle();
+    getButton(root, 'Preview').click();
+    contexts.at(-1)!.reveal({ start: 9, end: 11 });
+    expect([editor.selectionStart, editor.selectionEnd]).toEqual([9, 11]);
+    expect(root.dataset.mode).toBe('split');
+    expect(document.activeElement).toBe(editor);
+    expect(root.querySelector('[data-object-id="name"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(root.querySelector<HTMLInputElement>('[aria-label="Name"]')?.value).toBe('😀hello');
+    await settle();
+    contexts.at(-1)!.reveal({ start: -1, end: 99 });
+    expect([editor.selectionStart, editor.selectionEnd]).toEqual([9, 11]);
+    workbench.destroy();
+
+    const sparse = plainAdapter();
+    let sparseContext!: RenderContext<string>;
+    sparse.parse = source => ({ model: source, objects: [
+      { id: 'text', label: 'Word', kind: 'text', range: { start: 0, end: 5 } },
+    ] });
+    sparse.render = context => { sparseContext = context; };
+    const other = mount(sparse, { source: 'hello    ' });
+    await settle();
+    sparseContext.reveal({ start: 7, end: 8 });
+    other.editor.dispatchEvent(new Event('select'));
+    expect([other.editor.selectionStart, other.editor.selectionEnd]).toEqual([7, 8]);
+    expect(other.root.querySelector('.lw-inspector input')).not.toBeNull();
+  });
+
+  it('applies current preview edits as one persisted undo transaction and ignores stale callbacks', async () => {
+    const contexts: RenderContext<string>[] = [];
+    const adapter = plainAdapter();
+    const onChange = vi.fn();
+    adapter.render = context => { contexts.push(context); context.container.textContent = context.source; };
+    const { root, editor, workbench } = mount(adapter, { onChange });
+    await settle();
+    const initial = contexts[0];
+    initial.edit([
+      { start: 0, end: 0, text: '[' },
+      { start: 5, end: 5, text: ']' },
+    ]);
+    expect(workbench.getSource()).toBe('[hello]');
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('[hello]');
+    expect(JSON.parse(localStorage.getItem('layout:plain:document')!).source).toBe('[hello]');
+    await settle();
+    expect(root.querySelector('.lw-preview')?.textContent).toBe('[hello]');
+    editor.setSelectionRange(2, 2);
+    initial.reveal({ start: 0, end: 1 });
+    initial.edit([{ start: 0, end: 7, text: 'stale' }]);
+    expect([editor.selectionStart, editor.selectionEnd]).toEqual([2, 2]);
+    expect(workbench.getSource()).toBe('[hello]');
+    getButton(root, 'Undo').click();
+    expect(workbench.getSource()).toBe('hello');
+    expect(getButton(root, 'Undo').disabled).toBe(true);
+    await settle();
+    const current = contexts.at(-1)!;
+    current.edit([{ start: 0, end: 99, text: 'invalid' }]);
+    expect(workbench.getSource()).toBe('hello');
+    workbench.destroy();
+    current.edit([{ start: 0, end: 5, text: 'destroyed' }]);
+    current.reveal({ start: 0, end: 1 });
+    expect(workbench.getSource()).toBe('hello');
+  });
+
   it('aborts and ignores stale parse resolutions and rejections', async () => {
     const old = deferred<ParsedDocument<string>>();
     const latest = deferred<ParsedDocument<string>>();

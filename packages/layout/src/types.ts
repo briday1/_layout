@@ -49,6 +49,8 @@ export interface RenderContext<Model> extends DocumentContext<Model> {
   theme: Theme;
   signal: AbortSignal;
   select: (id: string) => void;
+  reveal: (range: SourceRange) => void;
+  edit: (edits: TextEdit[]) => void;
 }
 export interface ExportFormat<Model> {
   id: string;
