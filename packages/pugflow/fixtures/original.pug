@@ -1,0 +1,35 @@
+graph
+  .id original
+  .node
+    .id root
+    .label Root
+  .node
+    .id entry-1
+    .label Entry-1
+  .node
+    .id entry-2
+    .label Entry-2
+  .node
+    .id entry-3
+    .label Entry-3
+  .node
+    .id entry-3-1
+    .label Entry-3-1
+  .node
+    .id entry-3-2
+    .label Entry-3-2
+  .flow
+    .from root
+    .to entry-1
+  .flow
+    .from root
+    .to entry-2
+  .flow
+    .from root
+    .to entry-3
+  .flow
+    .from entry-3
+    .to entry-3-1
+  .flow
+    .from entry-3
+    .to entry-3-2

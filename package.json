@@ -13,7 +13,7 @@
   },
   "scripts": {
     "dev": "vite examples/pug-sankey --host 0.0.0.0",
-    "build:packages": "npm run build --workspace @briday1/layout && npm run build --workspace @briday1/layout-pug-sankey",
+    "build:packages": "npm run build --workspace @briday1/layout && npm run build --workspace @briday1/layout-pug-sankey && npm run build --workspace @briday1/layout-pugflow && npm run build --workspace @briday1/layout-jsonantt",
     "build": "npm run build:packages && vite build examples/pug-sankey --base=./",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

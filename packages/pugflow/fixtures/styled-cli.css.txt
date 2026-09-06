@@ -1,0 +1,13 @@
+@node cli_card {
+  shape: rounded;
+  fill: #245886;
+  color: #ffffff;
+  outline: #93c5fd;
+  shadow-color: #0f172a;
+  shadow-opacity: 0.25;
+}
+
+@flow cli_flow {
+  color: #2563eb;
+  stroke-style: dashed;
+}

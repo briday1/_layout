@@ -1,0 +1,31 @@
+graph
+  .id request-lifecycle
+  .node
+    .id request
+    .label Request
+  .node
+    .id cache
+    .label Check cache
+  .node
+    .id database
+    .label Query database
+  .node
+    .id response
+    .label Response
+  .flow
+    .from request
+    .to cache
+    .label route
+  .flow
+    .from request
+    .to database
+    .label route
+    .stroke-style dashed
+  .flow
+    .from cache
+    .to response
+    .label hit
+  .flow
+    .from database
+    .to response
+    .label query

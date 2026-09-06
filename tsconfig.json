@@ -6,7 +6,9 @@
     "moduleResolution": "Bundler",
     "paths": {
       "@briday1/layout": ["./packages/layout/src/index.ts"],
-      "@briday1/layout-pug-sankey": ["./packages/pug-sankey/src/index.ts"]
+      "@briday1/layout-pug-sankey": ["./packages/pug-sankey/src/index.ts"],
+      "@briday1/layout-pugflow": ["./packages/pugflow/src/index.ts"],
+      "@briday1/layout-jsonantt": ["./packages/jsonantt/src/index.ts"]
     },
     "strict": true,
     "noEmit": true,
