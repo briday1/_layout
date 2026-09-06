@@ -1,12 +1,14 @@
 # _layout
 
-A capability-first source workbench: one shared editor/preview/inspector engine
-that hosts **domain adapters** faithful to the three reference applications —
+A reusable source-workbench foundation for rebuilding the three reference
+applications —
 [pugflow](https://github.com/briday1/pugflow),
 [pug-sankey](https://github.com/briday1/pug-sankey), and
 [jsonantt](https://github.com/briday1/jsonantt). Each target keeps its own
-parser, renderer, DSL, and features; `_layout` supplies the surrounding
-document shell (undo/redo, selection, transactions, theming, exports).
+parser, renderer, DSL, and features; `_layout` supplies composable document
+facilities (undo/redo, selection, transactions, persistence, imports and
+exports). The recreations remain incomplete: the original applications, not
+these examples, are the parity specification.
 
 **This is a breaking-change release.** See
 [Breaking changes and migration](#breaking-changes-and-migration).
@@ -59,7 +61,6 @@ explicit**:
 | `update → TextEdit[]` | Atomic source patches; never mutate the model or DOM | all |
 | `commands` | Domain actions ("Add node", "Add task") with toolbar grouping | all |
 | `exports` | Per-canvas output formats (SVG/PNG/CSV), async, cancelable | all |
-| `styleProfile.artwork(theme)` | Map workbench themes onto adapter artwork tokens; document settings always win | all |
 
 Explicit capabilities replace the previous least-common-denominator UI: the
 shell only renders chrome a target actually uses, and each adapter's own engine
@@ -145,30 +146,31 @@ const branded = extendTheme(builtinThemes[1], {
 // Pass themes: [...builtinThemes, branded] to createWorkbench.
 ```
 
-Adapters receive the resolved theme and decide how to use its preview tokens;
-each target's `styleProfile.artwork` maps those tokens onto its engine's
-`--diagram-*` variables or figure defaults. **Explicit document settings always
-win over theme-derived artwork defaults.**
+Themes apply to the workbench chrome only. Target renderers retain their
+upstream artwork defaults; document settings are the only source of artwork
+overrides.
 
-## Target capability matrix
+## Upstream inventory and parity matrix
 
-| Feature | pug-sankey | pugflow | jsonantt |
+The pinned sources are the specification: pug-sankey
+[`3238001`](packages/pug-sankey/UPSTREAM.json), pugflow
+[`91d7c63`](packages/pugflow/UPSTREAM.json), and jsonantt
+[`df29d44`](packages/jsonantt/UPSTREAM.json). The entries below link each
+implemented path to a focused check. A **blocking** result means this repository
+does not yet recreate that upstream application exactly.
+
+| Upstream surface | _layout implementation | Verification | Status |
 | --- | --- | --- | --- |
-| DSL / format | Sankey Pug DSL | Pug flow DSL | JSON |
-| Upstream engine | vendored verbatim | vendored verbatim | ported (matplotlib → SVG) |
-| Flow shapes / block shapes | 12 flow themes | 7 shapes + 5 arrowheads | — |
-| Reusable styles | `@node/@flow/@annotation` | `@node/@flow/@graph` + CSS companion | `style` object |
-| Annotations | node/flow, above/below | node/flow/graph | — |
-| Companion source | — | Styles.css tab | — |
-| Canvases | preview | canvas | Gantt + Table tabs |
-| Exports | SVG, PNG | SVG, PNG | SVG, PNG, CSV |
-| Dependency links | feedback loops | cross-graph flows | arrows, `not_before` |
-| Known gaps vs upstream | Vim mode, drag offsets, Clean Up | Vim mode, drag offsets, Clean Up, MathJax (host may supply), image `href` assets | matplotlib-only canvases (burn charts, compare mode), PDF output, Python CLI |
+| pug-sankey parser, 12 flow themes, ribbons, annotations, SVG/PNG | `packages/pug-sankey/src/{engine,index}.ts` | `tests/sankey*.test.ts` | partial: original editor/Vim, drag offsets, Clean Up, dialogs and runtime/CLI are absent |
+| pugflow parser, layout, shapes, arrows, reusable CSS, SVG/PNG | `packages/pugflow/src/{engine,index,source}.ts` | `tests/pugflow.test.ts` | partial: original editor/Vim, drag offsets, Clean Up, image assets, MathJax bundle, dialogs and runtime/CLI are absent |
+| jsonantt JSON parser, Gantt/table, CSV/SVG/PNG | `packages/jsonantt/src/{engine,index}.ts` | `tests/jsonantt.test.ts` | blocking: this is a TypeScript approximation, not the Python/matplotlib runtime; burn/compare, PDF, include/file handling, Pyodide and CLI are absent |
+| Original application shells, menus, dialogs, file pickers and persistence | `packages/layout/src/workbench.ts` | `tests/workbench.test.ts` | blocking: the generic workbench is not a faithful replacement for the three original UIs |
+| Independent original-vs-recreation visual, semantic, interaction and export differential tests | — | — | blocking: only implementation-local unit tests currently exist |
 
-Gaps are deliberate scope boundaries, not silent omissions: the workbench
-reproduces each target's **document format, rendering, and editing surface**;
-upstream desktop chrome (Vim emulation, file-system pickers, Python CLIs,
-Pyodide workers) stays in the original applications.
+This table deliberately does not reclassify upstream features as desktop chrome
+or optional. Until every blocking row is implemented and independently tested
+against the pinned originals under deterministic browser/runtime conditions,
+this project must not claim exact parity.
 
 ## Breaking changes and migration
 
@@ -191,24 +193,20 @@ Pyodide workers) stays in the original applications.
 
 **Migrating the dependent repos (pugflow, pug-sankey, jsonantt):**
 
-Each upstream repo should replace its bespoke editor shell with
-`createWorkbench` + its adapter from this repo, keeping its document format
-unchanged:
+Do **not** migrate an upstream repository to these adapters yet. The adapters
+preserve selected document semantics, but they do not yet preserve the complete
+original application interface, runtime surfaces, or output fidelity:
 
-- **pug-sankey** → `createSankeyAdapter(source)`. The engine is byte-identical
-  to upstream; the workbench replaces `app.mjs`, the textarea/inspector, and
-  the export dialogs. Vim mode and drag-offset editing remain upstream-only
-  until ported.
-- **pugflow** → `createPugflowAdapter(pug, css)`. The companion CSS file becomes
-  the `styles` source tab. Multi-graph documents, reusable styles, and cross-
-  graph flows work; canvas dragging and the upstream dialogs are not yet ported.
-- **jsonantt** → `createJsonanttAdapter(json)`. The Gantt and Table canvases
-  map to the upstream chart/table renders. Burn charts, compare mode, and the
-  Pyodide worker remain upstream-only.
+- **pug-sankey** → `createSankeyAdapter(source)` is a reusable engine
+  integration, not a replacement for `app.mjs`, its editor, dialogs or CLI.
+- **pugflow** → `createPugflowAdapter(pug, css)` carries the Pug/CSS engines,
+  but the original editor, asset and MathJax provisioning, dialogs and CLI
+  remain required for a full recreation.
+- **jsonantt** → `createJsonanttAdapter(json)` is not suitable for migration:
+  its renderer is a TypeScript approximation and its Python, Pyodide, PDF,
+  comparison, burn-chart and file-composition surfaces are not present.
 
-Migration is a deliberate major-version step for each dependent repo: keep the
-upstream Python CLIs for headless rendering, and adopt the adapters for the
-interactive web editors.
+Migration remains blocked until the parity matrix has no blocking entries.
 
 ## Distribution and verification
 
@@ -218,12 +216,10 @@ installable artifacts for downstream projects. A registry release is a separate
 maintainer action.
 
 Tests cover source transactions, asynchronous lifecycle races, selection,
-inspector changes, undo/recovery, theme inheritance, and **fidelity suites for
-each target**: the pug-sankey suite renders all eight upstream demo documents
-and asserts exact SVG structure (gradients, trunk silhouettes, 12 themes,
-annotations); the pugflow suite renders the upstream examples with reusable CSS
-styles; the jsonantt suite checks date arithmetic, `not_before` resolution,
-milestone chains, palette inheritance, and the gantt/table/CSV outputs.
+inspector changes, undo/recovery, theme inheritance, and implementation-local
+engine checks. They are not independent parity evidence: they do not run the
+pinned original applications, compare deterministic screenshots/DOM/export
+fixtures, or exercise original end-to-end interactions.
 
 The Pages workflow runs package/example builds, type checking and tests before
 deployment. Browser checks should also cover narrow screens, click-to-source,

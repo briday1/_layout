@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Pugflow adapter: flow-style block diagrams on the _layout workbench.",
-  "files": ["dist"],
+  "files": ["dist", "UPSTREAM.json"],
   "exports": {
     ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
   },

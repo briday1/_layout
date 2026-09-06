@@ -1,5 +1,5 @@
 import type {
-  LayoutAdapter, SourceObject, InspectorField, TextEdit, Theme, DocumentContext,
+  LayoutAdapter, SourceObject, InspectorField, TextEdit, DocumentContext,
 } from '@briday1/layout';
 import { defineAdapter, svgToPng } from '@briday1/layout';
 import { parseDiagram } from './engine/parser.mjs';
@@ -47,18 +47,8 @@ function validateStyles(value: unknown): void {
   }
 }
 
-function themedModel(model: SankeyModel, theme: Theme): SankeyModel {
-  return { ...model, figure: {
-    ...model.figure,
-    background: model.figure.background || theme.tokens.preview,
-    text: model.figure.background ? null : theme.tokens.previewText,
-    labelColor: model.figure.labelColor || (model.figure.background ? null : theme.tokens.previewText),
-    font: model.figure.font || theme.tokens.font,
-  } };
-}
-
-function exportSvg(model: SankeyModel, theme: Theme): string {
-  const svg = render(document.createElement('div'), themedModel(model, theme));
+function exportSvg(model: SankeyModel): string {
+  const svg = render(document.createElement('div'), model);
   return `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(svg)}`;
 }
 
@@ -137,13 +127,12 @@ export function createSankeyAdapter(initialSource = ''): LayoutAdapter<SankeyMod
       }
       return { model, objects: objects(source, model), diagnostics };
     },
-    render({ container, model, theme, select, selection }) {
-      const svg = render(container, themedModel(model, theme), {
+    render({ container, model, select, selection }) {
+      const svg = render(container, model, {
         onElementClick: (item: { id?: string; from?: string; to?: string; lineNumber: number }) => {
           select(item.id ? `node:${item.id}` : `flow:${item.from}|${item.to}|${item.lineNumber}`);
         },
       });
-      svg.style.color = theme.tokens.accent;
       svg.querySelector('style')!.textContent += '\n.selected-element .channel{filter:drop-shadow(0 0 3px currentColor)}';
       const highlight = (selected: SourceObject | null) => {
         const key = selected?.id.replace(/^(node|flow):/, '');
@@ -196,10 +185,10 @@ export function createSankeyAdapter(initialSource = ''): LayoutAdapter<SankeyMod
     ],
     exports: [{
       id: 'svg', label: 'Export SVG', extension: 'svg', mimeType: 'image/svg+xml',
-      export: ({ model, theme }) => exportSvg(model, theme),
+      export: ({ model }) => exportSvg(model),
     }, {
       id: 'png', label: 'Export PNG', extension: 'png', mimeType: 'image/png',
-      export: ({ model, theme }) => svgToPng(exportSvg(model, theme)),
+      export: ({ model }) => svgToPng(exportSvg(model)),
     }],
   });
 }

@@ -54,6 +54,16 @@ describe('pugflow adapter (upstream engine fidelity)', () => {
     expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
   });
 
+  it('keeps upstream artwork defaults when the workbench theme changes', () => {
+    const parsed = parse();
+    const container = document.createElement('div');
+    adapter.render({
+      ...renderContext(parsed.model), theme: builtinThemes[1], container, signal,
+      select: vi.fn(), reveal: vi.fn(), edit: vi.fn(),
+    });
+    expect(container.querySelector('style')!.textContent).toContain('#ffffff');
+  });
+
   it('clicking a node selects it through the adapter contract', () => {
     const parsed = parse();
     const container = document.createElement('div');
@@ -110,6 +120,26 @@ describe('pugflow adapter (upstream engine fidelity)', () => {
     const updated = applyEdits(source, edits);
     expect(updated).toBe(source.replace('.label Root', '.label Origin'));
     expect(parse(updated).diagnostics).toEqual([]);
+  });
+
+  it('edits graph properties', () => {
+    const graphSource = `graph
+  .id group
+  .label Group
+  node
+    .id first
+    .label First
+  node
+    .id second
+    .label Second
+`;
+    const parsed = parse(graphSource);
+    const graph = parsed.objects.find(item => item.id === 'graph:group')!;
+    const graphUpdated = applyEdits(graphSource, adapter.update!({
+      source: graphSource, model: parsed.model, selection: graph, field: 'label', value: 'Updated group',
+    }));
+    expect(graphUpdated).toContain('.label Updated group');
+    expect(parse(graphUpdated).diagnostics).toEqual([]);
   });
 
   it('renames node IDs and every flow endpoint atomically', () => {

@@ -106,11 +106,11 @@ flow
     expect(svg.querySelectorAll('linearGradient stop')[1].getAttribute('offset')).toBe('75%');
   });
 
-  it('themes the artwork background only when the document does not set it', () => {
+  it('keeps the upstream artwork background independent of the workbench theme', () => {
     const explicit = draw(`.background #123456\n${simple}`);
     expect(explicit.svg.querySelector('rect')!.getAttribute('fill')).toBe('#123456');
     const inherited = draw(simple);
-    expect(inherited.svg.querySelector('rect')!.getAttribute('fill')).toBe(builtinThemes[0].tokens.preview);
+    expect(inherited.svg.querySelector('rect')!.getAttribute('fill')).toBe('#12171b');
   });
 
   it('marks sink nodes with pointed trunk silhouettes', () => {
