@@ -1,0 +1,111 @@
+// Demo 3 — household budget: income streams through accounts to spending (hundreds of dollars)
+.background #f8fafc
+.node-labels show
+.node-values show
+.flow-values show
+.blend 65
+
+node
+  .id salary
+  .label Salary
+  .color #16a34a
+node
+  .id freelance
+  .label Freelance
+  .color #22c55e
+node
+  .id investments
+  .label Investments
+  .color #84cc16
+node
+  .id checking
+  .label Checking
+  .color #2563eb
+node
+  .id savings
+  .label Savings
+  .color #0ea5e9
+  .annotation
+    .below
+      | Roughly 20% of income
+node
+  .id housing
+  .label Housing
+  .color #f97316
+node
+  .id food
+  .label Food
+  .color #eab308
+node
+  .id transport
+  .label Transport
+  .color #14b8a6
+node
+  .id leisure
+  .label Leisure
+  .color #ec4899
+node
+  .id subscriptions
+  .label Subscriptions
+  .color #a855f7
+node
+  .id travel
+  .label Travel
+  .color #06b6d4
+
+flow
+  .from salary
+  .to checking
+  .value 52
+flow
+  .from salary
+  .to savings
+  .value 16
+flow
+  .from freelance
+  .to checking
+  .value 9
+flow
+  .from freelance
+  .to savings
+  .value 3
+flow
+  .from investments
+  .to checking
+  .value 4
+flow
+  .from investments
+  .to savings
+  .value 6
+flow
+  .from checking
+  .to housing
+  .value 24
+flow
+  .from checking
+  .to food
+  .value 13
+flow
+  .from checking
+  .to transport
+  .value 9
+flow
+  .from checking
+  .to leisure
+  .value 10
+flow
+  .from checking
+  .to subscriptions
+  .value 9
+flow
+  .from savings
+  .to travel
+  .value 10
+flow
+  .from savings
+  .to housing
+  .value 8
+flow
+  .from savings
+  .to leisure
+  .value 7

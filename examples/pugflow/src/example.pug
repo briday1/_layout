@@ -1,0 +1,41 @@
+// Pugflow · powered by _layout
+// Click a node or connector to inspect it. Edit .offset by dragging is
+// available in the upstream app; here the inspector and source stay canonical.
+graph
+  .id request-lifecycle
+  .label Request lifecycle
+  node
+    .id request
+    .label Request
+    .shape rounded
+    .fill #245886
+    .color #ffffff
+  node
+    .id cache
+    .label Check cache
+  node
+    .id database
+    .label Query database
+    .shape cylinder
+  node
+    .id response
+    .label Response
+    .shape pill
+    .fill #70c9b1
+  flow
+    .from request
+    .to cache
+    .label route
+  flow
+    .from request
+    .to database
+    .label route
+    .stroke-style dashed
+  flow
+    .from cache
+    .to response
+    .label hit
+  flow
+    .from database
+    .to response
+    .label query

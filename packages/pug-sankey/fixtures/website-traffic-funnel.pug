@@ -1,0 +1,140 @@
+// Demo 2 — website traffic funnel: visits through channels and pages to conversions (thousands)
+.background #fafaf9
+.font Verdana
+.node-labels show
+.node-values show
+.flow-labels show
+.flow-values show
+.blend 55
+
+node
+  .id visits
+  .label Visits
+  .color #2563eb
+node
+  .id organic
+  .label Organic
+  .color #22c55e
+node
+  .id paid
+  .label Paid
+  .color #f59e0b
+node
+  .id social
+  .label Social
+  .color #ec4899
+node
+  .id email
+  .label Email
+  .color #8b5cf6
+node
+  .id landing
+  .label Landing
+  .color #0ea5e9
+node
+  .id docs
+  .label Docs
+  .color #14b8a6
+node
+  .id pricing
+  .label Pricing
+  .color #f97316
+node
+  .id signup
+  .label Signup
+  .color #16a34a
+node
+  .id bounce
+  .label Bounce
+  .color #94a3b8
+
+flow
+  .from visits
+  .to organic
+  .value 46
+  .label search
+flow
+  .from visits
+  .to paid
+  .value 22
+  .label ads
+flow
+  .from visits
+  .to social
+  .value 18
+  .label shares
+flow
+  .from visits
+  .to email
+  .value 14
+  .label campaigns
+flow
+  .from organic
+  .to landing
+  .value 26
+flow
+  .from organic
+  .to docs
+  .value 12
+flow
+  .from organic
+  .to pricing
+  .value 8
+flow
+  .from paid
+  .to landing
+  .value 14
+flow
+  .from paid
+  .to pricing
+  .value 8
+flow
+  .from social
+  .to landing
+  .value 10
+flow
+  .from social
+  .to docs
+  .value 5
+flow
+  .from social
+  .to pricing
+  .value 3
+flow
+  .from email
+  .to landing
+  .value 6
+flow
+  .from email
+  .to docs
+  .value 3
+flow
+  .from email
+  .to pricing
+  .value 5
+flow
+  .from landing
+  .to signup
+  .value 20
+  .label convert
+flow
+  .from landing
+  .to bounce
+  .value 36
+  .label leave
+flow
+  .from docs
+  .to signup
+  .value 6
+flow
+  .from docs
+  .to bounce
+  .value 14
+flow
+  .from pricing
+  .to signup
+  .value 18
+flow
+  .from pricing
+  .to bounce
+  .value 6

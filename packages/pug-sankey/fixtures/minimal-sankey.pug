@@ -1,0 +1,23 @@
+// Demo 8 — the smallest Sankey diagram: three nodes and two flows.
+// Grammar: optional canvas settings such as .background, .font,
+// .node-labels/.node-values/.flow-labels/.flow-values (show|hide) and
+// .blend (0-100), then node blocks with .id/.label/.color, then flow
+// blocks with .from/.to/.value plus optional .color and .label.
+// Values size both ribbon thickness and node bar heights.
+node
+  .id input
+  .label Input
+node
+  .id alpha
+  .label Alpha
+node
+  .id beta
+  .label Beta
+flow
+  .from input
+  .to alpha
+  .value 60
+flow
+  .from input
+  .to beta
+  .value 40

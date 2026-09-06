@@ -1,0 +1,100 @@
+// Demo 7 — support tickets: intake channels through triage and teams to resolution or escalation (tickets per week)
+.background #fdf4ff
+.node-labels show
+.node-values show
+.flow-values show
+.blend 60
+
+node
+  .id email
+  .label Email
+  .color #2563eb
+node
+  .id chat
+  .label Live chat
+  .color #0ea5e9
+node
+  .id phone
+  .label Phone
+  .color #f59e0b
+node
+  .id social
+  .label Social
+  .color #ec4899
+node
+  .id triage
+  .label Triage
+  .color #8b5cf6
+node
+  .id support-l1
+  .label Support L1
+  .color #22c55e
+node
+  .id billing
+  .label Billing
+  .color #eab308
+node
+  .id engineering
+  .label Engineering
+  .color #64748b
+node
+  .id resolved
+  .label Resolved
+  .color #16a34a
+node
+  .id escalated
+  .label Escalated
+  .color #ef4444
+
+flow
+  .from email
+  .to triage
+  .value 38
+flow
+  .from chat
+  .to triage
+  .value 27
+flow
+  .from phone
+  .to triage
+  .value 21
+flow
+  .from social
+  .to triage
+  .value 14
+flow
+  .from triage
+  .to support-l1
+  .value 52
+flow
+  .from triage
+  .to billing
+  .value 26
+flow
+  .from triage
+  .to engineering
+  .value 22
+flow
+  .from support-l1
+  .to resolved
+  .value 48
+flow
+  .from support-l1
+  .to engineering
+  .value 4
+flow
+  .from billing
+  .to resolved
+  .value 24
+flow
+  .from billing
+  .to engineering
+  .value 2
+flow
+  .from engineering
+  .to resolved
+  .value 20
+flow
+  .from engineering
+  .to escalated
+  .value 8

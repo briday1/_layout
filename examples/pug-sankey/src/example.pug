@@ -1,42 +1,54 @@
-// Pug Sankey · powered by _layout
+// Pug Sankey showcase — the upstream web app's boot document.
 // Click a ribbon or node to find its source and edit its properties.
 // Choose Diagram settings in Objects to explore all 12 flow shapes.
-.theme smooth
+.background #18181f
+.node-labels show
+.node-values show
+.flow-values show
 .blend 60
 
 node
-  .id solar
-  .label Solar
-  .color #e9b779
+  .id sources
+  .label Sources
+  .color #4cc9f0
 node
-  .id wind
-  .label Wind
-  .color #85b7e5
+  .id electricity
+  .label Electricity
+  .color #72efb1
 node
-  .id grid
-  .label Power grid
-  .color #70c9b1
+  .id heat
+  .label Heat
+  .color #ff9f68
 node
   .id homes
   .label Homes
-  .color #c1aaed
+  .color #d98cff
 node
   .id industry
   .label Industry
-  .color #dc93ad
+  .color #f9dc5c
+
 flow
-  .from solar
-  .to grid
-  .value 40
-flow
-  .from wind
-  .to grid
-  .value 60
-flow
-  .from grid
-  .to homes
+  .from sources
+  .to electricity
   .value 45
 flow
-  .from grid
+  .from sources
+  .to heat
+  .value 30
+flow
+  .from electricity
+  .to homes
+  .value 26
+flow
+  .from electricity
   .to industry
-  .value 55
+  .value 19
+flow
+  .from heat
+  .to homes
+  .value 12
+flow
+  .from heat
+  .to industry
+  .value 18

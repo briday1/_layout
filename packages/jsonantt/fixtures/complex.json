@@ -1,0 +1,272 @@
+{
+  "dateformat": "%Y-%m-%d",
+  "style": {
+    "row_height": 0.3,
+    "font_size": 12,
+    "indent_size": 3,
+    "subtask_lightening_pct": 25,
+    "major_tick": "year",
+    "minor_tick": "quarter",
+    "tick_position": "both"
+  },
+  "tasks": [
+    {
+      "name": "Phase 1 — Foundation",
+      "description": "Stand up the shared platform capabilities needed before product work can scale safely.",
+      "color": "#4472C4",
+      "children": [
+        {
+          "name": "Infrastructure",
+          "description": "Build the base runtime, delivery workflow, and observability foundations.",
+          "children": [
+            {
+              "name": "Cloud provisioning",
+              "description": "Provision the initial cloud accounts, networks, and base compute footprint.",
+              "start": "2024-01-08",
+              "end": "2024-02-16"
+            },
+            {
+              "name": "CI/CD pipeline",
+              "description": "Automate build, test, and deployment flows for every core service.",
+              "start": "2024-02-05",
+              "end": "2024-03-15"
+            },
+            {
+              "name": "Observability",
+              "description": "Add logs, metrics, traces, and alerting for operational visibility.",
+              "start": "2024-03-01",
+              "end": "2024-04-12"
+            }
+          ]
+        },
+        {
+          "name": "Core API",
+          "description": "Deliver the first shared backend surface that the product experiences depend on.",
+          "children": [
+            {
+              "name": "Auth service",
+              "description": "Implement identity, session, and permissions primitives for the platform.",
+              "start": "2024-01-15",
+              "end": "2024-03-01"
+            },
+            {
+              "name": "Data models",
+              "description": "Define the persistent domain model and migration strategy for core entities.",
+              "start": "2024-02-12",
+              "end": "2024-04-05"
+            },
+            {
+              "name": "REST endpoints",
+              "description": "Expose the initial product APIs for create, read, update, and workflow actions.",
+              "start": "2024-03-18",
+              "end": "2024-05-31"
+            }
+          ]
+        },
+        {
+          "name": "Foundation complete",
+          "description": "Platform foundations are ready for broad product feature development.",
+          "milestone": true,
+          "date": "2024-06-01",
+          "color": "#FFD700"
+        }
+      ]
+    },
+    {
+      "name": "Phase 2 — Product",
+      "description": "Build the first complete customer-facing experiences across web and mobile.",
+      "color": "#70AD47",
+      "children": [
+        {
+          "name": "Web frontend",
+          "description": "Create the primary browser experience for the product launch scope.",
+          "children": [
+            {
+              "name": "Design system",
+              "description": "Establish reusable components, tokens, and layout rules for consistency.",
+              "start": "2024-06-03",
+              "end": "2024-07-26"
+            },
+            {
+              "name": "Dashboard views",
+              "description": "Ship the core dashboards, navigation, and summary workflows.",
+              "start": "2024-07-15",
+              "end": "2024-09-27"
+            },
+            {
+              "name": "Settings & admin",
+              "description": "Add configuration, permissions, and tenant administration screens.",
+              "start": "2024-09-02",
+              "end": "2024-11-15"
+            }
+          ]
+        },
+        {
+          "name": "Mobile app",
+          "description": "Deliver companion mobile experiences for field and on-the-go workflows.",
+          "children": [
+            {
+              "name": "iOS",
+              "description": "Implement the iPhone and iPad client for the initial supported workflows.",
+              "start": "2024-07-01",
+              "end": "2024-10-18"
+            },
+            {
+              "name": "Android",
+              "description": "Implement the Android client with parity for launch-critical journeys.",
+              "start": "2024-08-05",
+              "end": "2024-11-29"
+            }
+          ]
+        },
+        {
+          "name": "Beta release",
+          "description": "First external beta is available for customer validation and feedback.",
+          "milestone": true,
+          "date": "2024-12-01",
+          "color": "#FFD700"
+        }
+      ]
+    },
+    {
+      "name": "Phase 3 — Hardening",
+      "description": "Stabilize quality, resilience, and readiness before the general launch.",
+      "color": "#ED7D31",
+      "children": [
+        {
+          "name": "Performance tuning",
+          "description": "Reduce latency and improve throughput across the most common paths.",
+          "start": "2025-01-06",
+          "end": "2025-03-14"
+        },
+        {
+          "name": "Security audit",
+          "description": "Review architecture and implementation for security gaps and remediation.",
+          "start": "2025-02-03",
+          "end": "2025-04-11"
+        },
+        {
+          "name": "Load testing",
+          "description": "Validate capacity and failure behavior under realistic peak traffic.",
+          "start": "2025-03-17",
+          "end": "2025-05-09"
+        },
+        {
+          "name": "Bug bash",
+          "description": "Run focused cross-functional QA passes to eliminate launch blockers.",
+          "start": "2025-05-05",
+          "end": "2025-06-27"
+        },
+        {
+          "name": "GA launch",
+          "description": "General availability launch for the first production release.",
+          "milestone": true,
+          "date": "2025-07-01",
+          "color": "#FFD700"
+        }
+      ]
+    },
+    {
+      "name": "Phase 4 — Scale",
+      "description": "Expand the platform for larger customers, broader reach, and analytics maturity.",
+      "color": "#9DC3E6",
+      "children": [
+        {
+          "name": "Multi-region deployment",
+          "description": "Roll out the service footprint across multiple regions for resilience.",
+          "start": "2025-07-07",
+          "end": "2025-10-31"
+        },
+        {
+          "name": "Enterprise SSO",
+          "description": "Add single sign-on integrations required by larger organizations.",
+          "start": "2025-08-04",
+          "end": "2025-11-28"
+        },
+        {
+          "name": "API v2",
+          "description": "Ship the next API generation with improved modeling and compatibility paths.",
+          "start": "2025-10-06",
+          "end": "2026-02-27"
+        },
+        {
+          "name": "Analytics platform",
+          "description": "Create the reporting, warehouse, and dashboarding layer for customer insights.",
+          "start": "2025-11-03",
+          "end": "2026-04-10"
+        },
+        {
+          "name": "Scale complete",
+          "description": "Core scale-up capabilities are complete and ready for ecosystem expansion.",
+          "milestone": true,
+          "date": "2026-04-10",
+          "color": "#FFD700"
+        }
+      ]
+    },
+    {
+      "name": "Phase 5 — Ecosystem",
+      "description": "Broaden platform adoption through integrations, partners, and developer tooling.",
+      "color": "#7030A0",
+      "children": [
+        {
+          "name": "Marketplace launch",
+          "description": "Open the extension marketplace so third parties can build on the platform.",
+          "start": "2026-04-06",
+          "end": "2026-09-25"
+        },
+        {
+          "name": "Partner integrations",
+          "description": "Connect strategic external systems to accelerate customer adoption.",
+          "start": "2026-07-06",
+          "end": "2027-01-29"
+        },
+        {
+          "name": "SDK & docs",
+          "description": "Publish developer tooling, examples, and documentation for external builders.",
+          "start": "2026-09-07",
+          "end": "2027-03-26"
+        },
+        {
+          "name": "Platform v3",
+          "description": "Third major platform milestone reached for the ecosystem phase.",
+          "milestone": true,
+          "date": "2027-04-01",
+          "color": "#FFD700"
+        }
+      ]
+    },
+    {
+      "name": "Phase 6 — AI & ML",
+      "description": "Invest in data and ML capabilities that define the long-term product vision.",
+      "color": "#FF5757",
+      "children": [
+        {
+          "name": "Data pipeline",
+          "description": "Build the governed data ingestion and feature preparation pipeline.",
+          "start": "2027-04-05",
+          "end": "2027-08-29"
+        },
+        {
+          "name": "Model training infra",
+          "description": "Provision training environments, experiment tracking, and model promotion flows.",
+          "start": "2027-07-05",
+          "end": "2027-12-26"
+        },
+        {
+          "name": "AI features (GA)",
+          "description": "Launch the first general-availability AI-assisted product capabilities.",
+          "start": "2027-10-04",
+          "end": "2028-06-27"
+        },
+        {
+          "name": "5-year vision complete",
+          "description": "The roadmap reaches its five-year target state and planned outcome.",
+          "milestone": true,
+          "date": "2028-07-01",
+          "color": "#FFD700"
+        }
+      ]
+    }
+  ]
+}

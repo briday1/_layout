@@ -1,0 +1,15 @@
+{
+  "name": "@briday1/layout-jsonantt",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "jsonantt adapter: JSON Gantt charts and task tables on the _layout workbench.",
+  "files": ["dist", "UPSTREAM.json"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "peerDependencies": { "@briday1/layout": "^0.1.0" },
+  "license": "UNLICENSED"
+}

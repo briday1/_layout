@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/briday1/jsonantt",
+  "revision": "df29d442c0b0104ea3d33a5790287463ec042983",
+  "directory": "jsonantt",
+  "files": ["models.py", "parser.py", "renderer.py", "value_format.py"],
+  "modifications": "engine/ is a TypeScript port of the Python originals (models.ts, parser.ts, renderer.ts, table.ts). Semantics, defaults, geometry constants and tick systems mirror the pinned revision; matplotlib-specific text measurement is approximated with canvas measureText.",
+  "licensing": "Upstream jsonantt is MIT licensed."
+}

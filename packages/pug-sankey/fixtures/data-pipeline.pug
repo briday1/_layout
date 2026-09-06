@@ -1,0 +1,101 @@
+// Demo 5 — data pipeline: sources through ingestion and storage to analytics, with a model feedback loop (TB/day)
+.background #f0f9ff
+.node-labels show
+.node-values show
+.flow-labels show
+.flow-values show
+.blend 45
+
+node
+  .id sensors
+  .label Sensors
+  .color #0ea5e9
+node
+  .id app-logs
+  .label App logs
+  .color #8b5cf6
+node
+  .id crm
+  .label CRM
+  .color #ec4899
+node
+  .id collectors
+  .label Collectors
+  .color #f59e0b
+node
+  .id etl
+  .label ETL jobs
+  .color #f97316
+node
+  .id data-lake
+  .label Data lake
+  .color #2563eb
+node
+  .id warehouse
+  .label Warehouse
+  .color #0d9488
+node
+  .id dashboards
+  .label Dashboards
+  .color #22c55e
+node
+  .id ml-models
+  .label ML models
+  .color #a855f7
+node
+  .id actions
+  .label Actions
+  .color #ef4444
+
+flow
+  .from sensors
+  .to collectors
+  .value 30
+flow
+  .from app-logs
+  .to collectors
+  .value 24
+flow
+  .from crm
+  .to etl
+  .value 18
+flow
+  .from collectors
+  .to data-lake
+  .value 40
+flow
+  .from collectors
+  .to warehouse
+  .value 14
+flow
+  .from etl
+  .to warehouse
+  .value 18
+flow
+  .from data-lake
+  .to ml-models
+  .value 22
+  .label training
+flow
+  .from data-lake
+  .to dashboards
+  .value 18
+flow
+  .from warehouse
+  .to dashboards
+  .value 20
+flow
+  .from warehouse
+  .to ml-models
+  .value 12
+flow
+  .from ml-models
+  .to actions
+  .value 26
+  .label predictions
+flow
+  .from ml-models
+  .to collectors
+  .value 8
+  .label sampling rules
+  .color #dc2626

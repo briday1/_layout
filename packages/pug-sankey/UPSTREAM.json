@@ -2,7 +2,15 @@
   "repository": "https://github.com/briday1/pug-sankey",
   "revision": "323800147ea70ae9c93bc8c829bf38cfe5f2104f",
   "directory": "src/pug_sankey/web",
-  "files": ["parser.mjs", "flowfield.mjs", "flow-layout.mjs", "flow-geometry.mjs", "flow-fabric.mjs", "style-sheet.mjs", "diagram-themes.mjs"],
-  "modifications": "None. Source validation and workbench integration live outside engine/.",
+  "files": [
+    "parser.mjs",
+    "flowfield.mjs",
+    "flow-layout.mjs",
+    "flow-geometry.mjs",
+    "flow-fabric.mjs",
+    "style-sheet.mjs",
+    "diagram-themes.mjs"
+  ],
+  "modifications": "flowfield.mjs: palette() reads CSS variables through a guarded helper so the engine runs in non-browser runtimes (tests, SSR) that lack getComputedStyle; behavior is unchanged in browsers. No other changes.",
   "licensing": "No license file was present at the pinned upstream revision. No additional license is asserted here; resolve licensing before third-party redistribution."
 }

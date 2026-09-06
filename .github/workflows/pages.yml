@@ -29,7 +29,7 @@ jobs:
       - uses: actions/upload-pages-artifact@v3.0.1
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
-          path: examples/pug-sankey/dist
+          path: examples/portal/dist
 
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

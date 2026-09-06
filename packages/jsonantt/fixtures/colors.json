@@ -1,0 +1,57 @@
+{
+  "title": "Color Scheme Example",
+  "dateformat": "%Y-%m-%d",
+  "style": {
+    "width": 15,
+    "row_height": 0.3,
+    "font_size": 12,
+    "major_tick": "month",
+    "minor_tick": "month",
+    "subtask_lightening_pct": 0,
+    "background": "#F7F3E8",
+    "grid_color": "#C9B89A",
+    "row_band_color": "#EFE7D7",
+    "milestone_color": "#8C2F39",
+    "milestone_marker": "s",
+    "colors": [
+      "#264653",
+      "#2A9D8F",
+      "#E9C46A",
+      "#F4A261",
+      "#E76F51"
+    ]
+  },
+  "tasks": [
+    {
+      "name": "Discovery",
+      "start": "2024-01-08",
+      "end": "2024-01-26"
+    },
+    {
+      "name": "Design system",
+      "start": "2024-01-22",
+      "end": "2024-02-23"
+    },
+    {
+      "name": "Implementation",
+      "children": [
+        {
+          "name": "Core flows",
+          "start": "2024-02-12",
+          "end": "2024-03-22"
+        },
+        {
+          "name": "Edge cases",
+          "start": "2024-03-04",
+          "end": "2024-03-29"
+        }
+      ]
+    },
+    {
+      "name": "Launch review",
+      "milestone": true,
+      "date": "2024-04-05",
+      "marker": "*"
+    }
+  ]
+}

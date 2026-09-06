@@ -1,0 +1,130 @@
+// Demo 4 — supply chain: raw materials through plants and products to markets (tonnes per week)
+.background #fffbeb
+.font Georgia
+.node-labels show
+.node-values show
+.flow-values show
+.blend 50
+
+node
+  .id steel
+  .label Steel
+  .color #6b7280
+node
+  .id polymer
+  .label Polymer
+  .color #06b6d4
+node
+  .id cotton
+  .label Cotton
+  .color #f472b6
+node
+  .id glass
+  .label Glass
+  .color #94a3b8
+node
+  .id components
+  .label Component plant
+  .color #f59e0b
+node
+  .id assembly
+  .label Assembly plant
+  .color #fb923c
+node
+  .id apparel-mill
+  .label Apparel mill
+  .color #db2777
+node
+  .id packaging
+  .label Packaging plant
+  .color #65a30d
+node
+  .id appliances
+  .label Appliances
+  .color #2563eb
+node
+  .id apparel
+  .label Apparel
+  .color #ec4899
+node
+  .id containers
+  .label Containers
+  .color #84cc16
+node
+  .id domestic
+  .label Domestic
+  .color #22c55e
+node
+  .id export
+  .label Export
+  .color #8b5cf6
+
+flow
+  .from steel
+  .to components
+  .value 18
+  .color #475569
+flow
+  .from steel
+  .to assembly
+  .value 12
+flow
+  .from polymer
+  .to components
+  .value 14
+flow
+  .from polymer
+  .to packaging
+  .value 16
+flow
+  .from cotton
+  .to apparel-mill
+  .value 20
+flow
+  .from glass
+  .to packaging
+  .value 10
+flow
+  .from glass
+  .to components
+  .value 4
+flow
+  .from components
+  .to assembly
+  .value 36
+flow
+  .from assembly
+  .to appliances
+  .value 48
+flow
+  .from apparel-mill
+  .to apparel
+  .value 20
+flow
+  .from packaging
+  .to containers
+  .value 26
+flow
+  .from appliances
+  .to domestic
+  .value 28
+flow
+  .from appliances
+  .to export
+  .value 20
+flow
+  .from apparel
+  .to domestic
+  .value 9
+flow
+  .from apparel
+  .to export
+  .value 11
+flow
+  .from containers
+  .to domestic
+  .value 16
+flow
+  .from containers
+  .to export
+  .value 10

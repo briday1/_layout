@@ -19,8 +19,16 @@ function make(tag, attrs = {}, text) {
   return element;
 }
 
+function safeComputedStyle(element) {
+  // Tolerate non-browser runtimes (tests, SSR) that lack layout engines.
+  try {
+    if (element instanceof Element) return getComputedStyle(element);
+  } catch { /* fall through to defaults */ }
+  return { getPropertyValue: () => "" };
+}
+
 function palette(container, figure) {
-  const css = getComputedStyle(container);
+  const css = safeComputedStyle(container);
   const read = (name, fallback) => css.getPropertyValue(name).trim() || fallback;
   const background = figure.background || read("--diagram-background", "#12171b");
   const hex = background.match(/^#([a-f0-9]{6}|[a-f0-9]{3})$/i);
