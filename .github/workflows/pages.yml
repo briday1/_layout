@@ -43,5 +43,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/configure-pages@v5.0.0
+        with:
+          enablement: true
       - uses: actions/deploy-pages@v4.0.5
         id: deployment
