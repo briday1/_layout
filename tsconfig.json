@@ -4,6 +4,10 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "@briday1/layout": ["./packages/layout/src/index.ts"],
+      "@briday1/layout-pug-sankey": ["./packages/pug-sankey/src/index.ts"]
+    },
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,

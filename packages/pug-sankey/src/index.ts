@@ -1,7 +1,7 @@
 import type {
   LayoutAdapter, SourceObject, InspectorField, TextEdit, Theme, DocumentContext,
 } from '@briday1/layout';
-import { svgToPng } from '@briday1/layout';
+import { defineAdapter, svgToPng } from '@briday1/layout';
 import { parseDiagram } from './engine/parser.mjs';
 import { renderFlowField } from './engine/flowfield.mjs';
 import { DIAGRAM_THEMES } from './engine/diagram-themes.mjs';
@@ -122,8 +122,10 @@ function append(source: string, text: string): TextEdit[] {
 
 /** Only syntax, domain commands, rendering and source patches belong here. */
 export function createSankeyAdapter(initialSource = ''): LayoutAdapter<SankeyModel> {
-  return {
+  return defineAdapter<SankeyModel>({
     id: 'pug-sankey', title: 'Pug Sankey', extension: 'pug', initialSource,
+    language: 'pug-sankey', preview: 'canvas',
+  }, {
     parse(source) {
       const model = parse(source);
       const diagnostics = model.errors.map(message => {
@@ -141,15 +143,17 @@ export function createSankeyAdapter(initialSource = ''): LayoutAdapter<SankeyMod
           select(item.id ? `node:${item.id}` : `flow:${item.from}|${item.to}|${item.lineNumber}`);
         },
       });
-      if (selection) {
-        const key = selection.id.replace(/^(node|flow):/, '');
+      svg.style.color = theme.tokens.accent;
+      svg.querySelector('style')!.textContent += '\n.selected-element .channel{filter:drop-shadow(0 0 3px currentColor)}';
+      const highlight = (selected: SourceObject | null) => {
+        const key = selected?.id.replace(/^(node|flow):/, '');
         svg.querySelectorAll('[data-selection-key]').forEach(element => {
           element.classList.toggle('selected-element', element.getAttribute('data-selection-key') === key);
         });
-        svg.style.color = theme.tokens.accent;
-        svg.querySelector('style')!.textContent += '\n.selected-element .channel{filter:drop-shadow(0 0 3px currentColor)}';
-      }
+      };
+      highlight(selection);
       container.replaceChildren(svg);
+      return { select: highlight, destroy: () => svg.remove() };
     },
     inspect,
     update(context) {
@@ -197,5 +201,5 @@ export function createSankeyAdapter(initialSource = ''): LayoutAdapter<SankeyMod
       id: 'png', label: 'Export PNG', extension: 'png', mimeType: 'image/png',
       export: ({ model, theme }) => svgToPng(exportSvg(model, theme)),
     }],
-  };
+  });
 }

@@ -36,7 +36,7 @@ describe('Sankey adapter', () => {
     const container = document.createElement('div');
     const select = vi.fn();
     const context = { source, model: parsed.model, selection: null, theme: builtinThemes[0] };
-    await adapter.render({ ...context, container, select, signal });
+    await adapter.render({ ...context, container, select, signal, reveal: vi.fn(), edit: vi.fn() });
     container.querySelector('[data-selection-key="a"]')!.dispatchEvent(new MouseEvent('click'));
     expect(select).toHaveBeenCalledWith('node:a');
     const exported = await adapter.exports![0].export(context);
@@ -100,7 +100,7 @@ describe('Sankey adapter', () => {
       expect(parsed.diagnostics).toEqual([]);
       expect(parsed.model.nodes[0].color).toBe('#ff0000');
       const container = document.createElement('div');
-      adapter.render({ container, model: parsed.model, source: text, selection: null, theme: builtinThemes[0], signal, select() {} });
+      adapter.render({ container, model: parsed.model, source: text, selection: null, theme: builtinThemes[0], signal, select() {}, reveal() {}, edit() {} });
       expect(container.querySelector('svg')?.dataset.diagramTheme).toBe(theme);
       expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
     }
@@ -130,7 +130,7 @@ describe('Sankey adapter', () => {
     }
     const parsed = parse(source.replace('.label Supply', '.label <script>alert(1)</script>'));
     const container = document.createElement('div');
-    await adapter.render({ container, source, model: parsed.model, selection: null, theme: builtinThemes[0], signal, select() {} });
+    await adapter.render({ container, source, model: parsed.model, selection: null, theme: builtinThemes[0], signal, select() {}, reveal() {}, edit() {} });
     expect(container.querySelector('script')).toBeNull();
   });
 });

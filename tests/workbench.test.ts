@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWorkbench } from '../packages/layout/src/workbench.js';
 import { builtinThemes } from '../packages/layout/src/themes.js';
 import type {
-  LayoutAdapter, ParsedDocument, RenderContext, Workbench, WorkbenchOptions,
+  LayoutAdapter, ParsedDocument, RenderContext, Workbench, WorkbenchOptions, SourceEditorContext,
 } from '../packages/layout/src/types.js';
 
 const plainAdapter = (): LayoutAdapter<string> => ({
@@ -399,6 +399,79 @@ describe('persistence', () => {
 });
 
 describe('asynchronous lifecycle', () => {
+  it('mounts renderers in a connected, themed container before measuring the preview', async () => {
+    const adapter = plainAdapter();
+    const connected = vi.fn();
+    adapter.render = ({ container }) => {
+      connected(container.isConnected, container.closest('[data-theme]')?.getAttribute('data-theme'));
+      container.textContent = 'Measured canvas';
+    };
+    const { root } = mount(adapter, { theme: 'dracula' });
+    await settle();
+    expect(connected).toHaveBeenCalledWith(true, 'dracula');
+    expect(root.querySelector<HTMLElement>('.lw-render')!.style.visibility).toBe('');
+    expect(root.querySelector('.lw-preview')?.hasAttribute('aria-busy')).toBe(false);
+  });
+
+  it('updates selection through render handles without rebuilding expensive previews', async () => {
+    const adapter = plainAdapter();
+    const select = vi.fn();
+    const destroy = vi.fn();
+    const render = vi.fn(({ container }: RenderContext<string>) => {
+      container.textContent = 'Persistent preview';
+      return { select, destroy };
+    });
+    adapter.render = render;
+    const { root, workbench } = mount(adapter);
+    await settle();
+    const canvas = root.querySelector('.lw-render');
+    workbench.select('text');
+    workbench.select(null);
+    expect(select.mock.calls.map(([object]) => object?.id ?? null)).toEqual(['text', null]);
+    expect(render).toHaveBeenCalledOnce();
+    expect(root.querySelector('.lw-render')).toBe(canvas);
+    workbench.setSource('replacement');
+    await settle();
+    expect(destroy).toHaveBeenCalledOnce();
+    workbench.destroy();
+    expect(destroy).toHaveBeenCalledTimes(2);
+  });
+
+  it('cleans late render handles without installing their selection hooks', async () => {
+    const adapter = plainAdapter();
+    const pending = deferred<{ select: ReturnType<typeof vi.fn>; destroy: ReturnType<typeof vi.fn> }>();
+    const late = { select: vi.fn(), destroy: vi.fn() };
+    adapter.render = ({ model }) => model === 'hello' ? pending.promise : undefined;
+    const { workbench } = mount(adapter);
+    await settle();
+    workbench.setSource('new');
+    await settle();
+    pending.resolve(late);
+    await settle();
+    expect(late.destroy).toHaveBeenCalledOnce();
+    workbench.select('text');
+    expect(late.select).not.toHaveBeenCalled();
+  });
+
+  it.each(['source', 'theme', 'destroy'])('aborts backend exports on %s changes', async change => {
+    const adapter = plainAdapter();
+    const pending = deferred<string>();
+    let signal!: AbortSignal;
+    adapter.exports![0].export = context => { signal = context.signal!; return pending.promise; };
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const { root, workbench } = mount(adapter);
+    await settle();
+    getButton(root, 'Export text').click();
+    expect(signal.aborted).toBe(false);
+    if (change === 'source') workbench.setSource('new');
+    else if (change === 'theme') workbench.setTheme('dark');
+    else workbench.destroy();
+    expect(signal.aborted).toBe(true);
+    pending.resolve('obsolete output');
+    await settle();
+    expect(click).not.toHaveBeenCalled();
+  });
+
   it('reveals arbitrary UTF-16 preview ranges and selects the nearest inspector object', async () => {
     const adapter = jsonAdapter();
     const contexts: RenderContext<{ name: string }>[] = [];
@@ -429,6 +502,67 @@ describe('asynchronous lifecycle', () => {
     other.editor.dispatchEvent(new Event('select'));
     expect([other.editor.selectionStart, other.editor.selectionEnd]).toEqual([7, 8]);
     expect(other.root.querySelector('.lw-inspector input')).not.toBeNull();
+  });
+
+  describe('replaceable source editors', () => {
+    it('keeps history, mapping, diagnostics and themes in the host with a custom editor', async () => {
+      const adapter = jsonAdapter();
+      adapter.language = 'json';
+      let context!: SourceEditorContext;
+      const editor = { setSource: vi.fn(), reveal: vi.fn(), setTheme: vi.fn(), setDiagnostics: vi.fn(), destroy: vi.fn() };
+      const { root, workbench } = mount(adapter, {
+        createEditor: supplied => {
+          context = supplied;
+          supplied.container.textContent = 'Custom editor surface';
+          return editor;
+        },
+      });
+      await settle();
+      expect(root.querySelector('textarea')).toBeNull();
+      expect(context.language).toBe('json');
+      expect(context.container.isConnected).toBe(true);
+      expect(context.source).toBe('{"name":"hello"}');
+      context.onSelect({ start: 10, end: 10 });
+      expect(root.querySelector('[data-object-id="name"]')?.getAttribute('aria-pressed')).toBe('true');
+      workbench.reveal({ start: 9, end: 11 });
+      expect(editor.reveal).toHaveBeenCalledWith({ start: 9, end: 11 });
+      workbench.edit([{ start: 9, end: 14, text: 'world' }]);
+      expect(workbench.getSource()).toBe('{"name":"world"}');
+      expect(editor.setSource).toHaveBeenLastCalledWith('{"name":"world"}');
+      getButton(root, 'Undo').click();
+      expect(editor.setSource).toHaveBeenLastCalledWith('{"name":"hello"}');
+      context.onChange('invalid JSON');
+      await settle();
+      expect(editor.setDiagnostics).toHaveBeenLastCalledWith([expect.objectContaining({ severity: 'error' })]);
+      workbench.setTheme('dark');
+      expect(editor.setTheme).toHaveBeenCalledWith(builtinThemes[1]);
+      workbench.destroy();
+      expect(editor.destroy).toHaveBeenCalledOnce();
+      context.onChange('too late');
+      context.onSelect({ start: 0, end: 1 });
+      workbench.edit([{ start: 0, end: 0, text: 'too late' }]);
+      workbench.reveal({ start: 0, end: 1 });
+      expect(workbench.getSource()).toBe('invalid JSON');
+      expect(editor.reveal).toHaveBeenCalledOnce();
+    });
+
+    it('ignores invalid custom-editor ranges and reports integration exceptions', async () => {
+      let context!: SourceEditorContext;
+      const { root, workbench } = mount(plainAdapter(), {
+        createEditor: supplied => {
+          context = supplied;
+          return {
+            setSource() {}, destroy() {},
+            reveal() { throw new Error('Editor failed'); },
+          };
+        },
+      });
+      await settle();
+      context.onSelect({ start: -1, end: 100 });
+      expect(root.querySelector('[aria-pressed="true"][data-object-id]')).toBeNull();
+      workbench.reveal({ start: 0, end: 1 });
+      expect(root.querySelector('[role="status"]')?.textContent).toBe('Editor failed');
+    });
   });
 
   it('applies current preview edits as one persisted undo transaction and ignores stale callbacks', async () => {
@@ -503,7 +637,8 @@ describe('asynchronous lifecycle', () => {
     };
     const { root, workbench } = mount(adapter);
     await settle();
-    expect(root.querySelector('.lw-preview')?.textContent).toBe('');
+    expect(contexts[0].container.isConnected).toBe(true);
+    expect(contexts[0].container.style.visibility).toBe('hidden');
     workbench.setSource('latest');
     await settle();
     expect(contexts[0].signal.aborted).toBe(true);

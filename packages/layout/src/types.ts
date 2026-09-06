@@ -52,12 +52,17 @@ export interface RenderContext<Model> extends DocumentContext<Model> {
   reveal: (range: SourceRange) => void;
   edit: (edits: TextEdit[]) => void;
 }
+export interface RenderHandle {
+  destroy(): void;
+  /** Update highlights without restarting a worker or rebuilding the preview. */
+  select?: (selection: SourceObject | null) => void;
+}
 export interface ExportFormat<Model> {
   id: string;
   label: string;
   extension: string;
   mimeType: string;
-  export: (context: DocumentContext<Model> & { theme: Theme }) =>
+  export: (context: DocumentContext<Model> & { theme: Theme; signal?: AbortSignal }) =>
     string | Blob | Promise<string | Blob>;
 }
 export interface WorkbenchCommand<Model> {
@@ -65,16 +70,21 @@ export interface WorkbenchCommand<Model> {
   label: string;
   run: (context: DocumentContext<Model>) => TextEdit[];
 }
-/** Adapters own domain syntax/rendering; the workbench owns all document state. */
-export interface LayoutAdapter<Model> {
+export interface LayoutTemplate {
   id: string;
   title: string;
   extension: string;
   initialSource: string;
+  language?: string;
+  /** Document previews scroll normally; canvases opt in to shared pan/zoom. */
+  preview?: 'document' | 'canvas';
+}
+/** Adapters own domain syntax/rendering; the workbench owns all document state. */
+export interface LayoutAdapter<Model> extends LayoutTemplate {
   parse: (source: string, signal: AbortSignal) =>
     ParsedDocument<Model> | Promise<ParsedDocument<Model>>;
   render: (context: RenderContext<Model>) =>
-    void | (() => void) | Promise<void | (() => void)>;
+    void | (() => void) | RenderHandle | Promise<void | (() => void) | RenderHandle>;
   inspect?: (context: DocumentContext<Model>) => InspectorField[];
   update?: (context: DocumentContext<Model> & {
     field: string; value: string | number | boolean;
@@ -82,6 +92,24 @@ export interface LayoutAdapter<Model> {
   commands?: WorkbenchCommand<Model>[];
   exports?: ExportFormat<Model>[];
 }
+export type LayoutImplementation<Model> = Omit<LayoutAdapter<Model>, keyof LayoutTemplate>;
+export interface SourceEditor {
+  /** Programmatic writes must not emit onChange or create independent history. */
+  setSource(source: string): void;
+  reveal(range: SourceRange): void;
+  setTheme?(theme: Theme): void;
+  setDiagnostics?(diagnostics: readonly Diagnostic[]): void;
+  destroy(): void;
+}
+export interface SourceEditorContext {
+  container: HTMLElement;
+  source: string;
+  language?: string;
+  theme: Theme;
+  onChange(source: string): void;
+  onSelect(range: SourceRange): void;
+}
+export type SourceEditorFactory = (context: SourceEditorContext) => SourceEditor;
 export interface WorkbenchOptions {
   /** Unique per document/app. Set to false to disable persistence. */
   storageKey?: string | false;
@@ -89,13 +117,15 @@ export interface WorkbenchOptions {
   themes?: Theme[];
   theme?: string;
   source?: string;
-  /** Optional editor language integrations can observe every source change. */
+  createEditor?: SourceEditorFactory;
   onChange?: (source: string) => void;
 }
 export interface Workbench {
   getSource(): string;
   setSource(source: string): void;
   select(id: string | null): void;
+  reveal(range: SourceRange): void;
+  edit(edits: TextEdit[]): void;
   setTheme(id: string): void;
   destroy(): void;
 }

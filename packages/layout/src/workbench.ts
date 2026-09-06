@@ -1,8 +1,9 @@
 import { applyEdits } from './edits.js';
 import { applyTheme, builtinThemes } from './themes.js';
+import { createTextareaEditor } from './editor.js';
 import type {
   Diagnostic, DocumentContext, LayoutAdapter, ParsedDocument, SourceObject,
-  SourceRange, Theme, Workbench, WorkbenchOptions,
+  SourceRange, Theme, Workbench, WorkbenchOptions, SourceEditor, RenderHandle, TextEdit,
 } from './types.js';
 
 export function createWorkbench<Model>(
@@ -46,6 +47,9 @@ export function createWorkbench<Model>(
   let parseController: AbortController | null = null;
   let renderController: AbortController | null = null;
   let renderCleanup: (() => void) | undefined;
+  let renderSelect: RenderHandle['select'];
+  let editor: SourceEditor | undefined;
+  const exports = new Set<AbortController>();
   let importReader: FileReader | null = null;
   const undo: string[] = [];
   const redo: string[] = [];
@@ -102,12 +106,6 @@ export function createWorkbench<Model>(
   const main = element('main', 'lw-main');
   const sourcePanel = element('section', 'lw-source-panel');
   sourcePanel.setAttribute('aria-label', 'Source');
-  const editor = element('textarea', 'lw-editor');
-  editor.setAttribute('aria-label', 'Source editor');
-  editor.spellcheck = false;
-  editor.wrap = 'off';
-  editor.value = source;
-  sourcePanel.append(editor);
   const previewPanel = element('section', 'lw-preview-panel');
   previewPanel.setAttribute('aria-label', 'Preview');
   const preview = element('div', 'lw-preview');
@@ -142,6 +140,7 @@ export function createWorkbench<Model>(
     renderController = null;
     const previous = renderCleanup;
     renderCleanup = undefined;
+    renderSelect = undefined;
     cleanup(previous);
     preview.replaceChildren();
   }
@@ -155,28 +154,10 @@ export function createWorkbench<Model>(
   function focusRange(range: SourceRange) {
     if (!validRange(range)) return;
     if (sourcePanel.hidden) setMode('split');
-    editor.focus({ preventScroll: true });
-    editor.setSelectionRange(range.start, range.end);
-    const style = win.getComputedStyle(editor);
-    const fontSize = Number.parseFloat(style.fontSize) || 14;
-    const lineHeight = Number.parseFloat(style.lineHeight) || fontSize * 1.2;
-    const before = source.slice(0, range.start);
-    const line = before.split('\n').length - 1;
-    const columnText = before.slice(before.lastIndexOf('\n') + 1);
-    const measure = element('span', 'lw-source-measure', columnText);
-    Object.assign(measure.style, {
-      position: 'absolute', visibility: 'hidden', whiteSpace: 'pre',
-      font: style.font, letterSpacing: style.letterSpacing, tabSize: style.tabSize,
-    });
-    root.append(measure);
-    const columnWidth = measure.getBoundingClientRect().width;
-    measure.remove();
-    editor.scrollTop = Math.max(0, line * lineHeight + (Number.parseFloat(style.paddingTop) || 0) -
-      Math.max(0, (editor.clientHeight - lineHeight) / 2));
-    editor.scrollLeft = Math.max(0, columnWidth + (Number.parseFloat(style.paddingLeft) || 0) -
-      editor.clientWidth / 2);
+    try { editor?.reveal(range); } catch (error) { report(error); }
   }
   function showDiagnostics(items: Diagnostic[]) {
+    try { editor?.setDiagnostics?.(items); } catch (error) { report(error); }
     diagnostics.replaceChildren();
     items.forEach(item => {
       const row = element('li', `lw-diagnostic lw-diagnostic-${item.severity}`);
@@ -243,6 +224,10 @@ export function createWorkbench<Model>(
             report('Enter a valid number.');
             return;
           }
+          if (!input.checkValidity()) {
+            report(input.validationMessage);
+            return;
+          }
           try {
             changeSource(applyEdits(source, adapter.update({ ...latest, field: field.id, value })));
           } catch (error) { report(error); }
@@ -260,7 +245,11 @@ export function createWorkbench<Model>(
     buildNavigator();
     buildInspector();
     if (next && focus) focusRange(next.range);
-    if (changed) void render();
+    if (changed) {
+      if (renderSelect) {
+        try { renderSelect(selection); } catch (error) { report(error); }
+      } else void render();
+    }
   }
   function objectAt(range: SourceRange): SourceObject | null {
     const objects = parsed?.objects.filter(item => validRange(item.range)) ?? [];
@@ -274,9 +263,13 @@ export function createWorkbench<Model>(
     return objects.sort((a, b) => distance(a) - distance(b) || size(a) - size(b))[0] ?? null;
   }
   function reveal(range: SourceRange) {
-    if (!validRange(range)) return;
+    if (destroyed || !validRange(range)) return;
     select(objectAt(range)?.id ?? null, false);
     focusRange(range);
+  }
+  function edit(edits: TextEdit[]) {
+    if (destroyed) return;
+    try { changeSource(applyEdits(source, edits)); } catch (error) { report(error); }
   }
   async function render() {
     clearRender();
@@ -287,6 +280,9 @@ export function createWorkbench<Model>(
     const controller = new AbortController();
     renderController = controller;
     const container = element('div', 'lw-render');
+    container.style.visibility = 'hidden';
+    preview.append(container);
+    preview.setAttribute('aria-busy', 'true');
     const isCurrent = () => !destroyed && revision === currentRevision &&
       renderRevision === currentRender && !controller.signal.aborted;
     try {
@@ -294,22 +290,24 @@ export function createWorkbench<Model>(
         ...current, container, theme, signal: controller.signal,
         select: id => { if (isCurrent()) select(id); },
         reveal: range => { if (isCurrent()) reveal(range); },
-        edit: edits => {
-          if (!isCurrent()) return;
-          try { changeSource(applyEdits(source, edits)); } catch (error) { report(error); }
-        },
+        edit: edits => { if (isCurrent()) edit(edits); },
       });
+      const dispose = typeof result === 'function' ? result : result ? () => result.destroy() : undefined;
       if (!isCurrent()) {
-        cleanup(typeof result === 'function' ? result : undefined);
+        cleanup(dispose);
         container.replaceChildren();
+        container.remove();
         return;
       }
-      renderCleanup = typeof result === 'function' ? result : undefined;
-      preview.replaceChildren(container);
+      renderCleanup = dispose;
+      renderSelect = result && typeof result !== 'function' && result.select
+        ? selection => result.select!(selection) : undefined;
+      container.style.visibility = '';
       preview.removeAttribute('aria-busy');
     } catch (error) {
       if (isCurrent()) { preview.removeAttribute('aria-busy'); report(error); }
       container.replaceChildren();
+      container.remove();
     }
   }
   const documentActions: HTMLButtonElement[] = [];
@@ -322,6 +320,7 @@ export function createWorkbench<Model>(
     const currentRevision = ++revision;
     const selectedId = selection?.id;
     parseController?.abort();
+    cancelExports();
     const controller = new AbortController();
     parseController = controller;
     clearRender();
@@ -365,7 +364,7 @@ export function createWorkbench<Model>(
     if (destroyed || value === source) return;
     if (history) { undo.push(source); redo.length = 0; }
     source = value;
-    editor.value = source;
+    try { editor?.setSource(source); } catch (error) { report(error); }
     void parse();
     notify();
   }
@@ -416,11 +415,15 @@ export function createWorkbench<Model>(
       const current = context();
       if (!current || destroyed) return;
       const exportRevision = revision;
+      const controller = new AbortController();
+      exports.add(controller);
       try {
-        void Promise.resolve(format.export({ ...current, theme })).then(data => {
-          if (!destroyed && exportRevision === revision) download(data, format.extension, format.mimeType);
-        }).catch(error => { if (!destroyed && exportRevision === revision) report(error); });
-      } catch (error) { report(error); }
+        void Promise.resolve(format.export({ ...current, theme, signal: controller.signal })).then(data => {
+          if (!destroyed && !controller.signal.aborted && exportRevision === revision) download(data, format.extension, format.mimeType);
+        }).catch(error => {
+          if (!destroyed && !controller.signal.aborted && exportRevision === revision) report(error);
+        }).finally(() => exports.delete(controller));
+      } catch (error) { exports.delete(controller); report(error); }
     });
     documentActions.push(node);
   });
@@ -439,15 +442,6 @@ export function createWorkbench<Model>(
     reader.onloadend = () => { if (importReader === reader) importReader = null; };
     reader.readAsText(file);
   });
-  listen(editor, 'input', () => changeSource(editor.value));
-  const caretSelection = () => {
-    if (!parsed || destroyed) return;
-    const object = objectAt({ start: editor.selectionStart, end: editor.selectionEnd });
-    select(object?.id ?? null, false);
-  };
-  listen(editor, 'click', caretSelection);
-  listen(editor, 'keyup', caretSelection);
-  listen(editor, 'select', caretSelection);
   listen(root, 'keydown', event => {
     const key = event as KeyboardEvent;
     if ((key.ctrlKey || key.metaKey) && !key.altKey && key.key.toLowerCase() === 'z') {
@@ -460,28 +454,45 @@ export function createWorkbench<Model>(
     const next = themes.find(item => item.id === id);
     if (!next) return;
     theme = next;
+    cancelExports();
     themeSelect.value = theme.id;
     applyTheme(root, theme);
+    try { editor?.setTheme?.(theme); } catch (error) { report(error); }
     persist(themeKey, { theme: theme.id });
     if (parsed) void render();
   }
   listen(themeSelect, 'change', () => setTheme(themeSelect.value));
   themeSelect.value = theme.id;
   applyTheme(root, theme);
+  function cancelExports() {
+    exports.forEach(controller => controller.abort());
+    exports.clear();
+  }
+  editor = (options.createEditor ?? createTextareaEditor)({
+    container: sourcePanel, source, language: adapter.language, theme,
+    onChange: value => changeSource(value),
+    onSelect: range => {
+      if (parsed && !destroyed && validRange(range)) select(objectAt(range)?.id ?? null, false);
+    },
+  });
   void parse();
   return {
     getSource: () => source,
     setSource: value => changeSource(value),
     select,
+    reveal,
+    edit,
     setTheme,
     destroy() {
       if (destroyed) return;
       destroyed = true;
       revision++;
       parseController?.abort();
+      cancelExports();
       importReader?.abort();
       importReader = null;
       clearRender();
+      cleanup(() => editor?.destroy());
       disposers.forEach(dispose => dispose());
       root.replaceChildren();
       root.classList.remove('lw-workbench');
