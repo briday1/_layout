@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWorkbench } from '../packages/layout/src/workbench.js';
 import { builtinThemes } from '../packages/layout/src/themes.js';
 import type {
-  LayoutAdapter, ParsedDocument, RenderContext, Workbench, WorkbenchOptions, SourceEditorContext,
+  LayoutAdapter, ParsedDocument, RenderContext, RenderHandle, Workbench, WorkbenchOptions, SourceEditorContext,
 } from '../packages/layout/src/types.js';
 
 const plainAdapter = (): LayoutAdapter<string> => ({
@@ -439,7 +439,7 @@ describe('asynchronous lifecycle', () => {
 
   it('cleans late render handles without installing their selection hooks', async () => {
     const adapter = plainAdapter();
-    const pending = deferred<{ select: ReturnType<typeof vi.fn>; destroy: ReturnType<typeof vi.fn> }>();
+    const pending = deferred<RenderHandle>();
     const late = { select: vi.fn(), destroy: vi.fn() };
     adapter.render = ({ model }) => model === 'hello' ? pending.promise : undefined;
     const { workbench } = mount(adapter);
