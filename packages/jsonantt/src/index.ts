@@ -300,15 +300,8 @@ export function createJsonanttAdapter(initialSource = ''): LayoutAdapter<Jsonant
       const { model, diagnostics } = buildModel(source);
       return { model, objects: objects(source, model), diagnostics };
     },
-    render({ container, model, theme, canvas, select }) {
-      const config: ChartConfig = {
-        ...model.config,
-        style: {
-          ...model.config.style,
-          background: model.config.style.background === '#FFFFFF'
-            ? theme.tokens.preview : model.config.style.background,
-        },
-      };
+    render({ container, model, canvas, select }) {
+      const config: ChartConfig = model.config;
       const svg = canvas === 'table' ? renderTableSvg(config) : renderChartSvg(config);
       if (!svg) {
         container.replaceChildren();

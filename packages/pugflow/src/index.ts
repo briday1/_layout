@@ -1,6 +1,6 @@
 import type {
   DocumentContext, InspectorSection, LayoutAdapter, SourceObject, SourceRange,
-  TextEdit, Theme,
+  TextEdit,
 } from '@briday1/layout';
 import { defineAdapter, svgToPng } from '@briday1/layout';
 import { parseDiagram } from './engine/parser.mjs';
@@ -187,25 +187,13 @@ function inspect({ model, selection }: DocumentContext<PugflowModel>): Inspector
 
 const FIELD_IDS = new Set([
   ...Object.keys(NODE_FIELD_MAP), ...Object.keys(FLOW_FIELD_MAP),
+  ...Object.keys(GRAPH_FIELD_MAP),
   'background', 'font', 'annotation.color',
 ]);
 
-function themedFigure(model: PugflowModel, theme: Theme): Record<string, unknown> {
-  return {
-    ...model.figure,
-    background: model.figure.background || theme.tokens.preview,
-    text: model.figure.text || theme.tokens.previewText,
-    label: model.figure.label || theme.tokens.previewText,
-    merge: model.figure.merge || theme.tokens.previewText,
-    annotation: model.figure.annotation || theme.tokens.muted,
-    font: model.figure.font || theme.tokens.font,
-  };
-}
-
-function exportSvgString(model: PugflowModel, theme: Theme, styles: string): string {
+function exportSvgString(model: PugflowModel, styles: string): string {
   const container = document.createElement('div');
-  const graph = { ...model, figure: themedFigure(model, theme) };
-  const svg = render(container, graph, { styles });
+  const svg = render(container, model, { styles });
   // Mirror upstream exportSvgClone: drop hit-only paths and interactive state.
   const clone = svg.cloneNode(true) as SVGSVGElement;
   clone.classList.remove('interactive');
@@ -224,16 +212,6 @@ export function createPugflowAdapter(initialSource = '', stylesSource = ''): Lay
       id: 'styles', label: 'Styles', extension: 'css', initialSource: stylesSource, language: 'css',
     }],
     capabilities: { navigatorGroups: true, panZoom: true },
-    styleProfile: {
-      artwork: (theme: Theme) => ({
-        '--diagram-background': theme.tokens.preview,
-        '--diagram-label': theme.tokens.previewText,
-        '--diagram-text': theme.tokens.previewText,
-        '--diagram-merge': theme.tokens.previewText,
-        '--diagram-annotation': theme.tokens.muted,
-        '--diagram-font': theme.tokens.font,
-      }),
-    },
   }, {
     parse(source, signal, companions = []) {
       void signal;
@@ -247,9 +225,8 @@ export function createPugflowAdapter(initialSource = '', stylesSource = ''): Lay
       });
       return { model, objects: objects(source, model), diagnostics };
     },
-    render({ container, model, theme, select, selection, companionSources }) {
-      const graph = { ...model, figure: themedFigure(model, theme) };
-      const svg = render(container, graph, {
+    render({ container, model, select, selection, companionSources }) {
+      const svg = render(container, model, {
         styles: companionSources[0] ?? '',
         onElementClick: (item: { kind: string; id: string | null; from: string | null; to: string | null; lineNumber: number; additive: boolean }) => {
           if (item.additive) return;
@@ -262,7 +239,6 @@ export function createPugflowAdapter(initialSource = '', stylesSource = ''): Lay
           if (item.id) select(`node:${item.id}`);
         },
       });
-      svg.style.color = theme.tokens.accent;
       const highlight = (selected: SourceObject | null) => {
         let key: string | undefined;
         if (selected?.kind === 'node' || selected?.kind === 'image') key = selected.id;
@@ -358,10 +334,10 @@ export function createPugflowAdapter(initialSource = '', stylesSource = ''): Lay
     ],
     exports: [{
       id: 'svg', label: 'Export SVG', extension: 'svg', mimeType: 'image/svg+xml',
-      export: ({ model, theme, companionSources }) => exportSvgString(model, theme, companionSources[0] ?? ''),
+      export: ({ model, companionSources }) => exportSvgString(model, companionSources[0] ?? ''),
     }, {
       id: 'png', label: 'Export PNG', extension: 'png', mimeType: 'image/png',
-      export: ({ model, theme, companionSources }) => svgToPng(exportSvgString(model, theme, companionSources[0] ?? '')),
+      export: ({ model, companionSources }) => svgToPng(exportSvgString(model, companionSources[0] ?? '')),
     }],
   });
 }

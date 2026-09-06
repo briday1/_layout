@@ -112,6 +112,26 @@ describe('pugflow adapter (upstream engine fidelity)', () => {
     expect(parse(updated).diagnostics).toEqual([]);
   });
 
+  it('edits graph properties', () => {
+    const graphSource = `graph
+  .id group
+  .label Group
+  node
+    .id first
+    .label First
+  node
+    .id second
+    .label Second
+`;
+    const parsed = parse(graphSource);
+    const graph = parsed.objects.find(item => item.id === 'graph:group')!;
+    const graphUpdated = applyEdits(graphSource, adapter.update!({
+      source: graphSource, model: parsed.model, selection: graph, field: 'label', value: 'Updated group',
+    }));
+    expect(graphUpdated).toContain('.label Updated group');
+    expect(parse(graphUpdated).diagnostics).toEqual([]);
+  });
+
   it('renames node IDs and every flow endpoint atomically', () => {
     const parsed = parse();
     const selection = parsed.objects.find(item => item.id === 'node:root')!;
