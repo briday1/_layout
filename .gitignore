@@ -2,3 +2,6 @@ node_modules/
 dist/
 coverage/
 *.local
+# tsc build output emitted next to sources (e.g. when tsc -p runs without copying to dist/)
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
