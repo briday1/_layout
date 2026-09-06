@@ -54,6 +54,16 @@ describe('pugflow adapter (upstream engine fidelity)', () => {
     expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
   });
 
+  it('keeps upstream artwork defaults when the workbench theme changes', () => {
+    const parsed = parse();
+    const container = document.createElement('div');
+    adapter.render({
+      ...renderContext(parsed.model), theme: builtinThemes[1], container, signal,
+      select: vi.fn(), reveal: vi.fn(), edit: vi.fn(),
+    });
+    expect(container.querySelector('style')!.textContent).toContain('#ffffff');
+  });
+
   it('clicking a node selects it through the adapter contract', () => {
     const parsed = parse();
     const container = document.createElement('div');

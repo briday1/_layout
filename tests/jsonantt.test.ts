@@ -53,6 +53,16 @@ describe('jsonantt adapter (gantt fidelity)', () => {
     expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
   });
 
+  it('keeps the upstream white artwork background when the workbench theme changes', () => {
+    const parsed = parse(simpleJson);
+    const container = document.createElement('div');
+    adapter.render({
+      ...ctx(parsed.model, simpleJson), theme: builtinThemes[1], container, signal,
+      select: vi.fn(), reveal: vi.fn(), edit: vi.fn(),
+    });
+    expect(container.querySelector('rect')!.getAttribute('fill')).toBe('#FFFFFF');
+  });
+
   it('resolves not_before chains and duration specs (dependencies fixture)', () => {
     const parsed = parse(dependenciesJson);
     expect(parsed.diagnostics).toEqual([]);
