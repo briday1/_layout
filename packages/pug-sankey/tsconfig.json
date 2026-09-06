@@ -5,6 +5,8 @@
     "declaration": true,
     "outDir": "dist",
     "rootDir": "src",
+    // Reset the base config's "paths" so @briday1/* imports resolve to workspace
+    // dependencies instead of sources outside rootDir, which would break declaration emit.
     "paths": {}
   },
   "include": ["src"]
