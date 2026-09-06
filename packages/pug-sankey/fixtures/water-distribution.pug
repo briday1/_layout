@@ -1,0 +1,87 @@
+// Demo 6 — water resources: sources through treatment and mains to consumption and losses (million litres per day)
+.background #eff6ff
+.node-labels show
+.node-values show
+.flow-values show
+.blend 55
+
+node
+  .id reservoir
+  .label Reservoir
+  .color #2563eb
+node
+  .id groundwater
+  .label Groundwater
+  .color #0ea5e9
+node
+  .id recycled
+  .label Recycled
+  .color #14b8a6
+node
+  .id treatment
+  .label Treatment plant
+  .color #f59e0b
+node
+  .id city-mains
+  .label City mains
+  .color #8b5cf6
+node
+  .id households
+  .label Households
+  .color #22c55e
+node
+  .id farms
+  .label Farms
+  .color #84cc16
+node
+  .id industry
+  .label Industry
+  .color #64748b
+node
+  .id losses
+  .label Losses
+  .color #ef4444
+  .annotation
+    .above
+      | Leaks and evaporation
+
+flow
+  .from reservoir
+  .to treatment
+  .value 42
+flow
+  .from groundwater
+  .to treatment
+  .value 18
+flow
+  .from groundwater
+  .to farms
+  .value 8
+flow
+  .from recycled
+  .to industry
+  .value 6
+flow
+  .from recycled
+  .to farms
+  .value 4
+flow
+  .from treatment
+  .to city-mains
+  .value 50
+flow
+  .from treatment
+  .to industry
+  .value 10
+flow
+  .from city-mains
+  .to households
+  .value 34
+flow
+  .from city-mains
+  .to industry
+  .value 8
+flow
+  .from city-mains
+  .to losses
+  .value 8

@@ -1,11 +1,19 @@
 import { applyEdits } from './edits.js';
 import { applyTheme, builtinThemes } from './themes.js';
 import { createTextareaEditor } from './editor.js';
+import { createViewport } from './viewport.js';
 import type {
-  Diagnostic, DocumentContext, LayoutAdapter, ParsedDocument, SourceObject,
-  SourceRange, Theme, Workbench, WorkbenchOptions, SourceEditor, RenderHandle, TextEdit,
+  AdapterCapabilities, Diagnostic, DocumentContext, InspectorField, InspectorSection,
+  LayoutAdapter, ParsedDocument, SourceObject, SourceRange, Theme, Workbench,
+  WorkbenchOptions, SourceEditor, RenderHandle, TextEdit,
 } from './types.js';
 
+/**
+ * Capability-first workbench shell. The adapter declares which features exist
+ * (navigator, inspector, sections, canvases, companion sources); the shell
+ * renders chrome only for enabled capabilities and routes every edit through
+ * one atomic source transaction.
+ */
 export function createWorkbench<Model>(
   root: HTMLElement,
   adapter: LayoutAdapter<Model>,
@@ -14,6 +22,14 @@ export function createWorkbench<Model>(
   const doc = root.ownerDocument;
   const win = doc.defaultView!;
   const themes: readonly Theme[] = options.themes?.length ? options.themes : builtinThemes;
+  const capabilities: Required<AdapterCapabilities> = {
+    navigator: adapter.capabilities?.navigator ?? true,
+    inspector: adapter.capabilities?.inspector ?? Boolean(adapter.inspect),
+    navigatorGroups: adapter.capabilities?.navigatorGroups ?? false,
+    panZoom: adapter.capabilities?.panZoom ?? adapter.preview === 'canvas',
+  };
+  const companions = adapter.sources ?? [];
+  const canvases = adapter.canvases ?? [];
   const storageKey = options.storageKey === false ? null :
     options.storageKey ?? `layout:${adapter.id}:document`;
   let storage: WorkbenchOptions['storage'];
@@ -35,6 +51,18 @@ export function createWorkbench<Model>(
   const themeKey = storageKey ? `${storageKey}:theme` : null;
   const savedTheme = themeKey ? read(themeKey)?.theme : null;
   let source = options.source ?? (typeof saved?.source === 'string' ? saved.source : adapter.initialSource);
+  const companionSources: Record<string, string> = {};
+  for (const companion of companions) {
+    const key = storageKey ? `${storageKey}:${companion.id}` : null;
+    const savedCompanion = key ? read(key)?.source : null;
+    companionSources[companion.id] =
+      options.companionSources?.[companion.id] ??
+      (typeof savedCompanion === 'string' ? savedCompanion : companion.initialSource);
+  }
+  let activeSourceId: string | null = null;
+  let canvas = options.canvas && canvases.some(item => item.id === options.canvas)
+    ? options.canvas
+    : canvases[0]?.id ?? 'preview';
   const preferredScheme = win.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   let theme: Theme = themes.find(item => item.id === (options.theme ?? savedTheme)) ??
     themes.find(item => item.id === preferredScheme) ??
@@ -49,10 +77,14 @@ export function createWorkbench<Model>(
   let renderCleanup: (() => void) | undefined;
   let renderSelect: RenderHandle['select'];
   let editor: SourceEditor | undefined;
-  const exports = new Set<AbortController>();
+  const exports_ = new Set<AbortController>();
   let importReader: FileReader | null = null;
-  const undo: string[] = [];
-  const redo: string[] = [];
+  /** Undo/redo stacks per source document (primary + each companion). */
+  const histories = new Map<string | null, { undo: string[]; redo: string[] }>();
+  const historyFor = (id: string | null) => {
+    if (!histories.has(id)) histories.set(id, { undo: [], redo: [] });
+    return histories.get(id)!;
+  };
   const disposers: (() => void)[] = [];
 
   function element<K extends keyof HTMLElementTagNameMap>(
@@ -106,16 +138,29 @@ export function createWorkbench<Model>(
   const main = element('main', 'lw-main');
   const sourcePanel = element('section', 'lw-source-panel');
   sourcePanel.setAttribute('aria-label', 'Source');
+  const sourceTabs = element('div', 'lw-source-tabs');
+  sourceTabs.setAttribute('role', 'tablist');
+  sourceTabs.setAttribute('aria-label', 'Source documents');
+  const editorHost = element('div', 'lw-editor-host');
+  sourcePanel.append(sourceTabs, editorHost);
   const previewPanel = element('section', 'lw-preview-panel');
   previewPanel.setAttribute('aria-label', 'Preview');
+  const canvasTabs = element('div', 'lw-canvas-tabs');
+  canvasTabs.setAttribute('role', 'tablist');
+  canvasTabs.setAttribute('aria-label', 'Preview');
+  const previewViewport = element('div', 'lw-preview-viewport');
   const preview = element('div', 'lw-preview');
-  previewPanel.append(preview);
+  previewViewport.append(preview);
+  const previewControls = element('div', 'lw-preview-controls');
+  previewPanel.append(canvasTabs, previewViewport, previewControls);
   const sidebar = element('aside', 'lw-sidebar');
   const navigator = element('nav', 'lw-navigator');
   navigator.setAttribute('aria-label', 'Objects');
   const inspector = element('section', 'lw-inspector');
   inspector.setAttribute('aria-label', 'Inspector');
-  sidebar.append(navigator, inspector);
+  if (capabilities.navigator) sidebar.append(navigator);
+  if (capabilities.inspector) sidebar.append(inspector);
+  if (!capabilities.navigator && !capabilities.inspector) sidebar.hidden = true;
   main.append(sourcePanel, previewPanel, sidebar);
   const diagnostics = element('ul', 'lw-diagnostics');
   diagnostics.setAttribute('aria-label', 'Diagnostics');
@@ -124,7 +169,9 @@ export function createWorkbench<Model>(
   status.setAttribute('aria-live', 'polite');
   const fileInput = element('input', 'lw-file-input');
   fileInput.type = 'file';
-  fileInput.accept = adapter.extension.startsWith('.') ? adapter.extension : `.${adapter.extension}`;
+  const activeExtension = () => activeSourceId
+    ? companions.find(item => item.id === activeSourceId)!.extension
+    : adapter.extension;
   fileInput.hidden = true;
   root.replaceChildren(toolbar, main, diagnostics, status, fileInput);
 
@@ -146,6 +193,9 @@ export function createWorkbench<Model>(
   }
   function context(): DocumentContext<Model> | null {
     return parsed ? { source, model: parsed.model, selection } : null;
+  }
+  function companionList(): string[] {
+    return companions.map(item => companionSources[item.id] ?? item.initialSource);
   }
   function validRange(range: SourceRange) {
     return Number.isInteger(range.start) && Number.isInteger(range.end) &&
@@ -172,17 +222,45 @@ export function createWorkbench<Model>(
     });
   }
   function buildNavigator() {
+    if (!capabilities.navigator) return;
     navigator.replaceChildren(element('h2', 'lw-heading', 'Objects'));
-    parsed?.objects.forEach(object => {
-      const node = element('button', 'lw-object', object.label);
-      node.type = 'button';
-      node.dataset.objectId = object.id;
-      node.setAttribute('aria-pressed', String(object.id === selection?.id));
-      node.onclick = () => select(object.id);
-      navigator.append(node);
+    const objects = parsed?.objects ?? [];
+    if (!capabilities.navigatorGroups) {
+      objects.forEach(object => navigator.append(objectButton(object)));
+      return;
+    }
+    const groups = new Map<string, SourceObject[]>();
+    objects.forEach(object => {
+      const key = object.kind;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(object);
+    });
+    groups.forEach((items, kind) => {
+      const heading = element('h3', 'lw-navigator-group', kind);
+      navigator.append(heading);
+      items.forEach(object => navigator.append(objectButton(object)));
     });
   }
+  function objectButton(object: SourceObject) {
+    const node = element('button', 'lw-object', object.label);
+    node.type = 'button';
+    node.dataset.objectId = object.id;
+    node.setAttribute('aria-pressed', String(object.id === selection?.id));
+    if (object.detail) {
+      const detail = element('span', 'lw-object-detail', object.detail);
+      node.append(detail);
+    }
+    if (object.hidden) node.classList.add('lw-object-hidden');
+    node.onclick = () => select(object.id);
+    return node;
+  }
+  function sectionsOf(fields: InspectorField[] | InspectorSection[]): InspectorSection[] {
+    if (!fields.length) return [];
+    if ('fields' in (fields[0] as InspectorSection)) return fields as InspectorSection[];
+    return [{ id: 'properties', fields: fields as InspectorField[] }];
+  }
   function buildInspector() {
+    if (!capabilities.inspector) return;
     inspector.replaceChildren(element('h2', 'lw-heading', 'Inspector'));
     const current = context();
     if (!current || !selection || !adapter.inspect) {
@@ -192,48 +270,64 @@ export function createWorkbench<Model>(
     try {
       const fieldRevision = revision;
       const objectId = selection.id;
-      adapter.inspect(current).forEach(field => {
-        const label = element('label', 'lw-field');
-        label.append(element('span', 'lw-field-label', field.label));
-        const input = field.type === 'select' ? element('select', 'lw-field-input') : element('input', 'lw-field-input');
-        input.setAttribute('aria-label', field.label);
-        input.dataset.field = field.id;
-        if (input instanceof win.HTMLSelectElement) {
-          field.options?.forEach(item => {
-            const option = element('option', '', item.label);
-            option.value = item.value;
-            input.append(option);
-          });
-          input.value = String(field.value);
-        } else {
-          input.type = field.type;
-          if (field.type === 'checkbox') input.checked = Boolean(field.value);
-          else input.value = String(field.value);
-          if (field.min !== undefined) input.min = String(field.min);
-          if (field.max !== undefined) input.max = String(field.max);
-          if (field.step !== undefined) input.step = String(field.step);
+      const sections = sectionsOf(adapter.inspect(current));
+      sections.forEach(section => {
+        if (sections.length > 1 || section.title) {
+          inspector.append(element('h3', 'lw-inspector-section', section.title ?? section.id));
         }
-        input.disabled = !!field.readOnly || !adapter.update;
-        input.onchange = () => {
-          const latest = context();
-          if (destroyed || fieldRevision !== revision || selection?.id !== objectId ||
-              !latest || !adapter.update || input.disabled) return;
-          const value = input instanceof win.HTMLInputElement && field.type === 'checkbox' ? input.checked :
-            field.type === 'number' ? Number(input.value) : input.value;
-          if (field.type === 'number' && (input.value === '' || !Number.isFinite(value))) {
-            report('Enter a valid number.');
-            return;
+        section.fields.forEach(field => {
+          const label = element('label', 'lw-field');
+          label.append(element('span', 'lw-field-label', field.label));
+          const input = field.type === 'select'
+            ? element('select', 'lw-field-input')
+            : field.type === 'textarea'
+              ? element('textarea', 'lw-field-input')
+              : element('input', 'lw-field-input');
+          input.setAttribute('aria-label', field.label);
+          input.dataset.field = field.id;
+          if (input instanceof win.HTMLSelectElement) {
+            field.options?.forEach(item => {
+              const option = element('option', '', item.label);
+              option.value = item.value;
+              input.append(option);
+            });
+            input.value = String(field.value);
+          } else if (input instanceof win.HTMLTextAreaElement) {
+            input.value = String(field.value ?? '');
+            input.rows = 3;
+            input.spellcheck = false;
+          } else {
+            input.type = field.type === 'color' ? 'text' : field.type;
+            if (field.type === 'checkbox') input.checked = Boolean(field.value);
+            else input.value = String(field.value ?? '');
+            if (field.placeholder) input.placeholder = field.placeholder;
+            if (field.min !== undefined) input.min = String(field.min);
+            if (field.max !== undefined) input.max = String(field.max);
+            if (field.step !== undefined) input.step = String(field.step);
           }
-          if (!input.checkValidity()) {
-            report(input.validationMessage);
-            return;
-          }
-          try {
-            changeSource(applyEdits(source, adapter.update({ ...latest, field: field.id, value })));
-          } catch (error) { report(error); }
-        };
-        label.append(input);
-        inspector.append(label);
+          input.disabled = !!field.readOnly || !adapter.update;
+          input.onchange = () => {
+            const latest = context();
+            if (destroyed || fieldRevision !== revision || selection?.id !== objectId ||
+                !latest || !adapter.update || input.disabled) return;
+            const value = input instanceof win.HTMLInputElement && field.type === 'checkbox' ? input.checked :
+              field.type === 'number' ? Number(input.value) : input.value;
+            if (field.type === 'number' && (input.value === '' || !Number.isFinite(value))) {
+              report('Enter a valid number.');
+              return;
+            }
+            if (input instanceof win.HTMLInputElement && !input.checkValidity()) {
+              report(input.validationMessage);
+              return;
+            }
+            try {
+              changeSource(applyEdits(source, adapter.update({ ...latest, field: field.id, value })));
+            } catch (error) { report(error); }
+          };
+          label.append(input);
+          if (field.help) label.append(element('span', 'lw-field-help', field.help));
+          inspector.append(label);
+        });
       });
     } catch (error) { report(error); }
   }
@@ -287,7 +381,8 @@ export function createWorkbench<Model>(
       renderRevision === currentRender && !controller.signal.aborted;
     try {
       const result = await adapter.render({
-        ...current, container, theme, signal: controller.signal,
+        ...current, container, theme, canvas, companionSources: companionList(),
+        signal: controller.signal,
         select: id => { if (isCurrent()) select(id); },
         reveal: range => { if (isCurrent()) reveal(range); },
         edit: edits => { if (isCurrent()) edit(edits); },
@@ -312,8 +407,9 @@ export function createWorkbench<Model>(
   }
   const documentActions: HTMLButtonElement[] = [];
   function updateActions() {
-    undoButton.disabled = undo.length === 0;
-    redoButton.disabled = redo.length === 0;
+    const history = historyFor(activeSourceId);
+    undoButton.disabled = history.undo.length === 0;
+    redoButton.disabled = history.redo.length === 0;
     documentActions.forEach(node => { node.disabled = !parsed; });
   }
   async function parse() {
@@ -333,7 +429,7 @@ export function createWorkbench<Model>(
     preview.setAttribute('aria-busy', 'true');
     status.textContent = 'Parsing…';
     try {
-      const result = await adapter.parse(source, controller.signal);
+      const result = await adapter.parse(source, controller.signal, companionList());
       if (destroyed || revision !== currentRevision || controller.signal.aborted) return;
       showDiagnostics(result.diagnostics ?? []);
       if (result.diagnostics?.some(item => item.severity === 'error')) {
@@ -358,25 +454,42 @@ export function createWorkbench<Model>(
   }
   function notify() {
     persist(storageKey, { source });
+    for (const companion of companions) {
+      persist(storageKey ? `${storageKey}:${companion.id}` : null,
+        { source: companionSources[companion.id] });
+    }
     try { options.onChange?.(source); } catch (error) { report(error); }
   }
+  function currentSource(): string {
+    return activeSourceId ? companionSources[activeSourceId] : source;
+  }
+  function setCurrentSource(value: string) {
+    if (activeSourceId) companionSources[activeSourceId] = value;
+    else source = value;
+  }
   function changeSource(value: string, history = true) {
-    if (destroyed || value === source) return;
-    if (history) { undo.push(source); redo.length = 0; }
-    source = value;
-    try { editor?.setSource(source); } catch (error) { report(error); }
+    if (destroyed || value === currentSource()) return;
+    if (history) {
+      const stack = historyFor(activeSourceId);
+      stack.undo.push(currentSource());
+      stack.redo.length = 0;
+    }
+    setCurrentSource(value);
+    try { editor?.setSource(currentSource()); } catch (error) { report(error); }
     void parse();
     notify();
   }
   function undoSource() {
-    if (!undo.length || destroyed) return;
-    redo.push(source);
-    changeSource(undo.pop()!, false);
+    const stack = historyFor(activeSourceId);
+    if (!stack.undo.length || destroyed) return;
+    stack.redo.push(currentSource());
+    changeSource(stack.undo.pop()!, false);
   }
   function redoSource() {
-    if (!redo.length || destroyed) return;
-    undo.push(source);
-    changeSource(redo.pop()!, false);
+    const stack = historyFor(activeSourceId);
+    if (!stack.redo.length || destroyed) return;
+    stack.undo.push(currentSource());
+    changeSource(stack.redo.pop()!, false);
   }
   function download(data: string | Blob, extension: string, mimeType: string) {
     const blob = typeof data === 'string' ? new Blob([data], { type: mimeType }) : data;
@@ -394,39 +507,61 @@ export function createWorkbench<Model>(
     if (win.confirm('Create a new document? This replaces the current source.')) changeSource('');
   });
   button('Reset', actions, () => {
-    if (win.confirm('Reset to the example? This replaces the current source.')) changeSource(adapter.initialSource);
+    if (win.confirm('Reset to the example? This replaces the current source.')) {
+      if (activeSourceId) {
+        changeSource(companions.find(item => item.id === activeSourceId)!.initialSource);
+      } else changeSource(adapter.initialSource);
+    }
   });
   button('Import', actions, () => fileInput.click());
   button('Save source', actions, () => {
-    try { download(source, adapter.extension, 'text/plain;charset=utf-8'); } catch (error) { report(error); }
+    try { download(currentSource(), activeExtension(), 'text/plain;charset=utf-8'); } catch (error) { report(error); }
   });
   const undoButton = button('Undo', actions, undoSource);
   const redoButton = button('Redo', actions, redoSource);
+  const commandGroups = new Map<string, HTMLElement>();
   adapter.commands?.forEach(command => {
-    const node = button(command.label, actions, () => {
+    const groupId = command.group ?? '';
+    if (!commandGroups.has(groupId)) {
+      const group = element('div', 'lw-command-group');
+      actions.append(group);
+      commandGroups.set(groupId, group);
+    }
+    const node = button(command.label, commandGroups.get(groupId)!, () => {
       const current = context();
       if (!current || destroyed) return;
       try { changeSource(applyEdits(source, command.run(current))); } catch (error) { report(error); }
     });
     documentActions.push(node);
   });
-  adapter.exports?.forEach(format => {
-    const node = button(format.label, actions, () => {
-      const current = context();
-      if (!current || destroyed) return;
-      const exportRevision = revision;
-      const controller = new AbortController();
-      exports.add(controller);
-      try {
-        void Promise.resolve(format.export({ ...current, theme, signal: controller.signal })).then(data => {
-          if (!destroyed && !controller.signal.aborted && exportRevision === revision) download(data, format.extension, format.mimeType);
-        }).catch(error => {
-          if (!destroyed && !controller.signal.aborted && exportRevision === revision) report(error);
-        }).finally(() => exports.delete(controller));
-      } catch (error) { exports.delete(controller); report(error); }
-    });
-    documentActions.push(node);
-  });
+  function rebuildExports() {
+    exportButtons.forEach(node => node.remove());
+    exportButtons.length = 0;
+    adapter.exports?.filter(format => !format.canvases || format.canvases.includes(canvas))
+      .forEach(format => {
+        const node = button(format.label, actions, () => {
+          const current = context();
+          if (!current || destroyed) return;
+          const exportRevision = revision;
+          const controller = new AbortController();
+          exports_.add(controller);
+          try {
+            void Promise.resolve(format.export({
+              ...current, theme, canvas, companionSources: companionList(), signal: controller.signal,
+            })).then(data => {
+              if (!destroyed && !controller.signal.aborted && exportRevision === revision) {
+                download(data, format.extension, format.mimeType);
+              }
+            }).catch(error => {
+              if (!destroyed && !controller.signal.aborted && exportRevision === revision) report(error);
+            }).finally(() => exports_.delete(controller));
+          } catch (error) { exports_.delete(controller); report(error); }
+        });
+        documentActions.push(node);
+        exportButtons.push(node);
+      });
+  }
+  const exportButtons: HTMLButtonElement[] = [];
   listen(fileInput, 'change', () => {
     const file = fileInput.files?.[0];
     fileInput.value = '';
@@ -465,24 +600,79 @@ export function createWorkbench<Model>(
   themeSelect.value = theme.id;
   applyTheme(root, theme);
   function cancelExports() {
-    exports.forEach(controller => controller.abort());
-    exports.clear();
+    exports_.forEach(controller => controller.abort());
+    exports_.clear();
   }
+  // Source tabs switch between the primary document and companion sources.
+  function buildSourceTabs() {
+    sourceTabs.replaceChildren();
+    if (!companions.length) { sourceTabs.hidden = true; return; }
+    sourceTabs.hidden = false;
+    const tabs: { id: string | null; label: string }[] = [
+      { id: null, label: adapter.title },
+      ...companions.map(item => ({ id: item.id as string | null, label: item.label })),
+    ];
+    tabs.forEach(tab => {
+      const node = element('button', 'lw-source-tab', tab.label);
+      node.type = 'button';
+      node.setAttribute('role', 'tab');
+      node.setAttribute('aria-selected', String(tab.id === activeSourceId));
+      node.onclick = () => setActiveSource(tab.id);
+      sourceTabs.append(node);
+    });
+  }
+  function setActiveSource(id: string | null) {
+    if (destroyed || id === activeSourceId) return;
+    if (id !== null && !companions.some(item => item.id === id)) return;
+    activeSourceId = id;
+    buildSourceTabs();
+    updateActions();
+    try { editor?.setSource(currentSource()); } catch (error) { report(error); }
+  }
+  // Canvas tabs switch preview surfaces (e.g. gantt chart vs table).
+  function buildCanvasTabs() {
+    canvasTabs.replaceChildren();
+    if (canvases.length < 2) { canvasTabs.hidden = true; return; }
+    canvasTabs.hidden = false;
+    canvases.forEach(profile => {
+      const node = element('button', 'lw-canvas-tab', profile.label);
+      node.type = 'button';
+      node.setAttribute('role', 'tab');
+      node.setAttribute('aria-selected', String(profile.id === canvas));
+      node.onclick = () => setCanvas(profile.id);
+      canvasTabs.append(node);
+    });
+  }
+  function setCanvas(id: string) {
+    if (destroyed || id === canvas || !canvases.some(item => item.id === id)) return;
+    canvas = id;
+    buildCanvasTabs();
+    rebuildExports();
+    if (parsed) void render();
+  }
+  buildSourceTabs();
+  buildCanvasTabs();
+  rebuildExports();
   editor = (options.createEditor ?? createTextareaEditor)({
-    container: sourcePanel, source, language: adapter.language, theme,
+    container: editorHost, source: currentSource(), language: adapter.language, theme,
     onChange: value => changeSource(value),
     onSelect: range => {
       if (parsed && !destroyed && validRange(range)) select(objectAt(range)?.id ?? null, false);
     },
   });
+  let viewport: { destroy(): void; reset(): void } | null = null;
+  if (capabilities.panZoom) viewport = createViewport(previewViewport, preview, previewControls);
   void parse();
   return {
     getSource: () => source,
     setSource: value => changeSource(value),
+    getActiveSourceId: () => activeSourceId,
+    setActiveSource,
     select,
     reveal,
     edit,
     setTheme,
+    setCanvas,
     destroy() {
       if (destroyed) return;
       destroyed = true;
@@ -491,6 +681,7 @@ export function createWorkbench<Model>(
       cancelExports();
       importReader?.abort();
       importReader = null;
+      viewport?.destroy();
       clearRender();
       cleanup(() => editor?.destroy());
       disposers.forEach(dispose => dispose());

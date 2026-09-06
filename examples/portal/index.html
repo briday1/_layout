@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="The _layout capability-first workbench, demonstrating three target applications." />
+    <title>_layout workbench</title>
+    <style>
+      body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
+      #app { height: 100dvh; }
+      .portal { max-width: 720px; margin: 12vh auto; padding: 0 24px; }
+      .portal h1 { letter-spacing: -.5px; }
+      .portal p { color: #555; }
+      .portal ul { list-style: none; padding: 0; display: grid; gap: 12px; }
+      .portal a {
+        display: block; padding: 18px 20px; border: 1px solid #ddd; border-radius: 10px;
+        text-decoration: none; color: inherit; transition: border-color .15s, box-shadow .15s;
+      }
+      .portal a:hover { border-color: #366fc2; box-shadow: 0 2px 12px rgb(0 0 0 / .08); }
+      .portal a strong { display: block; font-size: 17px; }
+      .portal a span { color: #666; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <noscript>This workbench requires JavaScript. Documents stay in your browser.</noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -131,7 +131,7 @@ describe('source-agnostic workbench', () => {
     field.dispatchEvent(new Event('change'));
     await settle();
     expect(update).toHaveBeenCalledOnce();
-    expect(parse).toHaveBeenLastCalledWith(field.value, expect.any(AbortSignal));
+    expect(parse).toHaveBeenLastCalledWith(field.value, expect.any(AbortSignal), []);
     expect(workbench.getSource()).toBe(field.value);
     expect(onChange).toHaveBeenLastCalledWith(field.value);
     expect(root.querySelector('img')).toBeNull();

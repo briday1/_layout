@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/briday1/pugflow",
+  "revision": "91d7c63475d11f19016c9bb6e7df55c5027580ca",
+  "directory": "src/pugflow/web",
+  "files": ["parser.mjs", "layout.mjs", "pugflow.mjs", "style-sheet.mjs", "reusable-style.mjs", "math-render.mjs"],
+  "modifications": "pugflow.mjs: renderSvg is exported (was module-private) so the adapter can render without createBlockDiagram's self-appending container lifecycle. No other changes. MathJax-backed math labels degrade to plain text unless globalThis.MathJax is provided by the host.",
+  "licensing": "Upstream is MIT licensed. The bundled MathJax vendor bundle (web/vendor/mathjax) is NOT vendored here; math typesetting is optional and supplied by the host."
+}

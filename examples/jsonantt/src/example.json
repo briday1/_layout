@@ -1,0 +1,69 @@
+{
+  "title": "Dependency Example — start/duration and not_before",
+  "dateformat": "%Y-%m-%d",
+  "style": {
+    "width": 16,
+    "row_height": 0.3,
+    "font_size": 12,
+    "major_tick": "year",
+    "minor_tick": "quarter"
+  },
+  "tasks": [
+    {
+      "id": "design",
+      "name": "Design",
+      "start": "2024-01-06",
+      "duration": "3m",
+      "color": "#4472C4",
+      "children": [
+        {
+          "id": "wireframes",
+          "name": "Wireframes",
+          "start": "2024-01-06",
+          "duration": "6w"
+        },
+        {
+          "id": "mockups",
+          "name": "Mockups",
+          "not_before": "wireframes",
+          "duration": "6w"
+        }
+      ]
+    },
+    {
+      "id": "backend",
+      "name": "Backend development",
+      "not_before": "design",
+      "duration": "6m",
+      "color": "#70AD47"
+    },
+    {
+      "id": "frontend",
+      "name": "Frontend development",
+      "not_before": "design",
+      "duration": "5m",
+      "color": "#ED7D31"
+    },
+    {
+      "id": "qa",
+      "name": "QA & testing",
+      "not_before": "backend",
+      "duration": "3m",
+      "color": "#FF5757"
+    },
+    {
+      "id": "rollout",
+      "name": "Staged rollout",
+      "not_before": "qa",
+      "duration": "4m",
+      "color": "#9DC3E6"
+    },
+    {
+      "id": "launch",
+      "name": "Launch",
+      "milestone": true,
+      "not_before": "rollout",
+      "color": "#FFD700"
+    }
+  ]
+}

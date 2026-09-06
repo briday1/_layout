@@ -1,0 +1,35 @@
+{
+  "title": "Release Gates",
+  "dateformat": "%Y-%m-%d",
+  "style": {
+    "milestone_marker": "D",
+    "milestone_color": "#C0504D"
+  },
+  "tasks": [
+    {
+      "name": "Release Track",
+      "description": "Nested with the preferred tasks key.",
+      "tasks": [
+        {
+          "name": "Gate Reviews",
+          "description": "Repeated checkpoints rendered on one row.",
+          "milestone": true,
+          "date": ["2024-06-01", "2024-06-15", "2024-07-01"],
+          "marker": "D",
+          "color": "#C0504D"
+        },
+        {
+          "name": "Legacy Nested Task",
+          "description": "children still works as a legacy alias.",
+          "children": [
+            {
+              "name": "Legacy Child Milestones",
+              "milestone": true,
+              "date": ["2024-07-10", "2024-07-24"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

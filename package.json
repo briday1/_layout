@@ -12,12 +12,12 @@
     "node": ">=22.23.0"
   },
   "scripts": {
-    "dev": "vite examples/pug-sankey --host 0.0.0.0",
-    "build:packages": "npm run build --workspace @briday1/layout && npm run build --workspace @briday1/layout-pug-sankey",
-    "build": "npm run build:packages && vite build examples/pug-sankey --base=./",
+    "dev": "vite examples/portal --host 0.0.0.0",
+    "build:packages": "npm run build --workspace @briday1/layout && npm run build --workspace @briday1/layout-pug-sankey && npm run build --workspace @briday1/layout-pugflow && npm run build --workspace @briday1/layout-jsonantt",
+    "build": "npm run build:packages && vite build examples/portal --base=./ && vite build examples/pug-sankey --base=./ && vite build examples/pugflow --base=./ && vite build examples/jsonantt --base=./",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "preview": "vite preview examples/pug-sankey --host 0.0.0.0"
+    "preview": "vite preview examples/portal --host 0.0.0.0"
   },
   "repository": {
     "type": "git",

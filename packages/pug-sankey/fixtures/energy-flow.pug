@@ -1,0 +1,113 @@
+// Demo 1 — energy flow from generation through carriers to end use
+.background #ffffff
+.font Inter
+.node-labels show
+.node-values show
+.flow-values show
+.blend 60
+
+node
+  .id coal
+  .label Coal
+  .color #57534e
+node
+  .id natural-gas
+  .label Natural gas
+  .color #f59e0b
+node
+  .id renewables
+  .label Renewables
+  .color #22c55e
+node
+  .id nuclear
+  .label Nuclear
+  .color #a855f7
+node
+  .id electricity
+  .label Electricity
+  .color #2563eb
+node
+  .id heat
+  .label Heat
+  .color #ef4444
+node
+  .id fuels
+  .label Fuels
+  .color #0ea5e9
+node
+  .id homes
+  .label Homes
+  .color #f97316
+node
+  .id industry
+  .label Industry
+  .color #64748b
+  .annotation
+    .above
+      | Largest single consumer
+node
+  .id transport
+  .label Transport
+  .color #14b8a6
+
+flow
+  .from coal
+  .to electricity
+  .value 28
+flow
+  .from coal
+  .to heat
+  .value 8
+flow
+  .from coal
+  .to fuels
+  .value 4
+flow
+  .from natural-gas
+  .to electricity
+  .value 22
+flow
+  .from natural-gas
+  .to heat
+  .value 14
+flow
+  .from natural-gas
+  .to fuels
+  .value 9
+flow
+  .from renewables
+  .to electricity
+  .value 30
+  .color #16a34a
+flow
+  .from nuclear
+  .to electricity
+  .value 15
+flow
+  .from electricity
+  .to homes
+  .value 35
+flow
+  .from electricity
+  .to industry
+  .value 40
+flow
+  .from electricity
+  .to transport
+  .value 20
+flow
+  .from heat
+  .to homes
+  .value 12
+flow
+  .from heat
+  .to industry
+  .value 10
+flow
+  .from fuels
+  .to transport
+  .value 9
+flow
+  .from fuels
+  .to industry
+  .value 4
